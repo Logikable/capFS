@@ -3,7 +3,7 @@ default: build
 
 CC = gcc
 WALL = -Wall
-DEBUG = -o0 -g -fvar-tracking
+DEBUG = -O0 -g -fvar-tracking
 FUSE_LIBS=`pkg-config fuse --cflags --libs`
 
 CFLAGS = $(WALL) $(FUSE_LIBS) $(DEBUG)
