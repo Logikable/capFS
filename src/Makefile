@@ -19,7 +19,7 @@ PROTOFLAGS = --c_out=.
 BINDIR = ../bin
 BINOUT = capfs
 BUILDDIR = build
-SOURCES = $(wildcard *.$(EXT)) $(patsubst %.proto, %.pb-c.c, $(PROTOSRCS))
+SOURCES = $(patsubst %.proto, %.pb-c.c, $(PROTOSRCS)) $(wildcard *.$(EXT))
 OBJ = $(patsubst %.$(EXT), $(BUILDDIR)/%.o, $(SOURCES))
 
 MNTPOINT = /mnt/capfs

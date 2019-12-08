@@ -45,7 +45,7 @@ capfs_access(const char *path, int mode) {
     return 0;
 }
 
-const char *FILE_PREFIX = "edu.berkeley.eecs.cs262.fa19.";
+const char *FILE_PREFIX = "edu.berkeley.eecs.cs262.fa19.capfs.1.";
 
 static int
 capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {

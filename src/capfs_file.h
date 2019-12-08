@@ -55,10 +55,11 @@ typedef struct capfs_file {
 } capfs_file_t;
 
 typedef struct inode {
-    unsigned int is_dir : 1;
-    unsigned int has_indirect_block: 1;
-    unsigned int recno : 4;
-    unsigned int padding : 10;   // Should be INODE_METADATA_SIZE - size of meta
+    unsigned int is_dir : 1;            // File data
+    unsigned int has_indirect_block: 1; // Record data
+    unsigned int recno : 4;             // Record data
+    unsigned int length : 8;            // File data
+    unsigned int padding : 2;   // Should be INODE_METADATA_SIZE - size of meta
     uint32_t direct_ptrs[DIRECT_PTRS];
     uint32_t indirect_ptrs[INDIRECT_PTRS]; 
 } inode_t;
@@ -67,6 +68,7 @@ EP_STAT capfs_file_read(capfs_file_t *file, char *buf, size_t size,
                         off_t offset);
 EP_STAT capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
                          off_t offset);
+capfs_file_t *capfs_file_new(gdp_name_t gob);
 void capfs_file_free(capfs_file_t *file);
 
 #endif // _CAPFS_FILE_H_
