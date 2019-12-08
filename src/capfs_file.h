@@ -27,42 +27,7 @@
 **  ----- END LICENSE BLOCK -----
 */
 
-#include "capfs.h"
+#ifndef _CAPFS_FILE_H_
+#define _CAPFS_FILE_H_
 
-#include <gdp/gdp.h>
-
-#define FUSE_USE_VERSION 30
-#include <fuse.h>
-
-static int
-capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
-    return 0;
-}
-
-static int
-capfs_open(const char *path, struct fuse_file_info *fi) {
-    return 0;
-}
-
-static int
-capfs_read(const char *path, char *buf, size_t size, off_t offset,
-           struct fuse_file_info *fi) {
-    return 0;
-}
-
-static int
-capfs_write(const char *path, const char *buf, size_t size, off_t offset,
-            struct fuse_file_info *fi) {
-    return 0;
-}
-
-static struct fuse_operations capfs_operations = {
-    .create = capfs_create,
-    .open = capfs_open,
-    .read = capfs_read,
-    .write = capfs_write,
-};
-
-int main(int argc, char *argv[]) {
-    return fuse_main(argc, argv, &capfs_operations, NULL);
-}
+#endif // _CAPFS_FILE_H_

@@ -3,5 +3,9 @@
 ## Getting Started
 
 Build: `make`
+
 Clean: `make clean`
-Mount: `bin/capfs -f [mount point]`
+
+Mount: 
+ * `make run`, or
+ * `bin/capfs -f [mount point]`
