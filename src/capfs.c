@@ -49,6 +49,7 @@ const char *FILE_PREFIX = "edu.berkeley.eecs.cs262.fa19.";
 
 static int
 capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
+    // Error handling
     if (strlen(path) == 0) {
         return -ENOENT;
     }
@@ -57,19 +58,25 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     }
 
     // TODO: check existence
+    char **path_tokens;
+    size_t num_tokens = split_path(path, &path_tokens);
+    char *file_name = path_tokens[num_tokens - 1];
 
+    // Create GCI - prep for creating DataCapsule
     gdp_create_info_t *gci = gdp_create_info_new();
     if (!EP_STAT_ISOK(gdp_create_info_set_creator(gci, "CapFS",
                       "fa19.cs262.eecs.berkeley.edu"))) {
         goto fail0;
     }
 
+    // Get a new file handler
     fh_entry_t *fh;
     if (!EP_STAT_ISOK(fh_new(path, &fh))) {
         goto fail0;
     }
     fi->fh = fh->fh;
 
+    // Create DataCapsule
     char human_name[256];
     strcpy(human_name, FILE_PREFIX);
     strcat(human_name, path);
@@ -78,7 +85,10 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     if (!EP_STAT_ISOK(gdp_gin_create(gci, human_name, &ginp))) {
         goto fail1;
     }
-    fh->ginp = ginp;
+    // Store GOB
+    memcpy(fh->gob, *gdp_gin_getname(ginp), 32);
+    // Cleanup
+    gdp_create_info_free(&gci);
     return 0;
 
 fail1:

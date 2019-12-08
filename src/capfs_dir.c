@@ -28,3 +28,27 @@
 */
 
 #include "capfs_dir.h"
+
+capfs_dir_t *
+capfs_dir_get_root(void) {
+    // TODO
+    return NULL;
+}
+
+bool
+capfs_dir_has_child(capfs_dir_t *dir, const char *path) {
+    // TODO
+    return false;
+}
+
+EP_STAT
+capfs_dir_get_child(capfs_dir_t *dir, const char *path, capfs_dir_t **child) {
+    // TODO
+    return EP_STAT_OK;
+}
+
+void
+capfs_dir_free(capfs_dir_t *dir) {
+    capfs_file_free(dir->file);
+    free(dir);
+}

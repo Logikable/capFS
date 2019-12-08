@@ -30,20 +30,25 @@
 #ifndef _CAPFS_UTIL_H_
 #define _CAPFS_UTIL_H_
 
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
 #include <ep/ep.h>
 #include <gdp/gdp.h>
 
 typedef struct fh_entry {
     uint64_t fh;
     char path[256];
-    gdp_gin_t *ginp;
+    gdp_name_t gob;
 } fh_entry_t;
 
 void fh_init(void);
 EP_STAT fh_new(const char *path, fh_entry_t **fh);
 void fh_free(uint64_t fh);
 
-bool split_path(const char *path, char ***tokens);
+size_t split_path(const char *path, char ***tokens);
 void free_tokens(char **tokens);
 
 #endif // _CAPFS_UTIL_H_

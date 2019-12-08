@@ -75,9 +75,9 @@ fh_free(uint64_t fh) {
     fh_list[fh] = NULL;
 }
 
-// Returns whether the path is a directory. Path should be defined
+// Returns the number of tokens. Path should be defined
 // Assumes path begins with a /
-bool
+size_t
 split_path(const char *path, char ***tokens) {
     if (path == NULL || path[0] != '/') {
         ep_app_error("Does not support NULL path or relative paths. Path: %s",
@@ -89,7 +89,7 @@ split_path(const char *path, char ***tokens) {
     size_t prev_index = 0;
     size_t index = 1;
     size_t tokens_index = 0;
-    while ((c = path[index]) != '\0') {
+    while ((c = path[index]) != '\0' && tokens_index < 32) {
         if (c == '/') {
             *tokens[tokens_index] = calloc(sizeof(char), 128);
             size_t length = index - prev_index - 1;
@@ -101,7 +101,7 @@ split_path(const char *path, char ***tokens) {
         index++;
     }
 
-    return path[strlen(path) - 1] == '/';
+    return tokens_index;
 }
 
 void

@@ -30,4 +30,19 @@
 #ifndef _CAPFS_DIR_H_
 #define _CAPFS_DIR_H_
 
+#include <ep/ep.h>
+#include <gdp/gdp.h>
+
+#include "capfs_file.h"
+
+typedef struct capfs_dir {
+    capfs_file_t *file;
+} capfs_dir_t;
+
+capfs_dir_t *capfs_dir_get_root(void);
+bool capfs_dir_has_child(capfs_dir_t *dir, const char *path);
+EP_STAT capfs_dir_get_child(capfs_dir_t *dir, const char *path,
+                            capfs_dir_t **child);
+void capfs_dir_free(capfs_dir_t *dir);
+
 #endif // _CAPFS_DIR_H_

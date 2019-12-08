@@ -30,4 +30,43 @@
 #ifndef _CAPFS_FILE_H_
 #define _CAPFS_FILE_H_
 
+// In bytes
+#define INODE_SIZE (16 * 1024)
+#define INDIRECT_SIZE (16 * 1024)
+#define BLOCK_SIZE (128 * 1024)
+#define INODE_METADATA_SIZE 16
+// Number of ptrs
+#define DIRECT_PTRS (3 / 4 * (INODE_SIZE / 4))
+#define INDIRECT_PTRS ((INODE_SIZE - INODE_METADATA_SIZE - DIRECT_PTRS * 4) / 4)
+#define DIRECT_IN_INDIRECT (INDIRECT_SIZE / 4)
+// In bytes
+// Amount stored in just direct pointers: roughly 400MB
+#define DIRECT_PTRS_SIZE (DIRECT_PTRS * BLOCK_SIZE)
+// Size of one indirect ptr
+#define INDIRECT_PTR_SIZE (DIRECT_IN_INDIRECT * BLOCK_SIZE)
+// Roughly 500GB+
+// #define MAX_FILE_SIZE (DIRECT_PTRS_SIZE + INDIRECT_PTRS * INDIREC_PTR_SIZE)
+
+#include <ep/ep.h>
+#include <gdp/gdp.h>
+
+typedef struct capfs_file {
+    gdp_name_t gob;
+} capfs_file_t;
+
+typedef struct inode {
+    unsigned int is_dir : 1;
+    unsigned int has_indirect_block: 1;
+    unsigned int recno : 4;
+    unsigned int padding : 10;   // Should be INODE_METADATA_SIZE - size of meta
+    uint32_t direct_ptrs[DIRECT_PTRS];
+    uint32_t indirect_ptrs[INDIRECT_PTRS]; 
+} inode_t;
+
+EP_STAT capfs_file_read(capfs_file_t *file, char *buf, size_t size,
+                        off_t offset);
+EP_STAT capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
+                         off_t offset);
+void capfs_file_free(capfs_file_t *file);
+
 #endif // _CAPFS_FILE_H_
