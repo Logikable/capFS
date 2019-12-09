@@ -31,10 +31,11 @@
 
 #define STR(s) _STR(s)
 #define _STR(s) #s
-#define ITER 4873493
+#define ITER 4873505
 
 #include <string.h>
 
+#include <ep/ep_dbg.h>
 #include <gdp/gdp.h>
 
 #include "capfs.h"
@@ -44,7 +45,7 @@ gdp_gin_t *test_create(void) {
     gdp_create_info_t *gci = gdp_create_info_new();
     OK(gdp_create_info_set_creator(
         gci, "CapFS", "fa19.cs262.eecs.berkeley.edu"));
-    // OK(gdp_create_info_new_owner_key(gci, NULL, NULL, 0, NULL, NULL));
+    OK(gdp_create_info_new_owner_key(gci, NULL, NULL, 0, NULL, "null"));
 
     char human_name[256];
     strcpy(human_name, FILE_PREFIX);
@@ -72,10 +73,14 @@ gdp_gin_t *test_open(void) {
 }
 
 int main(int argc, char *argv[]) {
+    // ep_dbg_set("30");
     init();
 
     // gdp_gin_t *ginp = test_open();
     gdp_gin_t *ginp = test_create();
+    OK(gdp_gin_close(ginp));
+
+    ginp = test_open();
 
     gdp_datum_t *datum = gdp_datum_new();
     OK(gdp_gin_read_by_recno(ginp, 0, datum));
@@ -88,7 +93,7 @@ int main(int argc, char *argv[]) {
     gdp_buf_write(dbuf, buf, 256);
 
     char pbuf[128];
-    PRINT_ESTAT(gdp_gin_append(ginp, datum, NULL), pbuf, 128);
+    PRINT_ESTAT(gdp_gin_append(ginp, datum, prevhash), pbuf, 128);
     // size_t len = gdp_buf_getlength(dbuf);
     // printf("%ld\n", len);
 

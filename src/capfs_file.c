@@ -62,31 +62,32 @@ capfs_file_indirect_ptr(off_t offset) {
 static EP_STAT
 capfs_file_read_block_from_recno(size_t recno, gdp_gin_t *ginp,
                                  char **buf, size_t *size, off_t *offset) {
+    EP_STAT estat;
+
     // Open GIN
     gdp_datum_t *direct_datum = gdp_datum_new();
-    if (!EP_STAT_ISOK(gdp_gin_read_by_recno(ginp, recno, direct_datum))) {
-        gdp_datum_free(direct_datum);
-        return EP_STAT_NOT_FOUND;
-    }
+    estat = gdp_gin_read_by_recno(ginp, recno, direct_datum);
+    EP_STAT_CHECK(estat, goto fail0);
+
     // Get inode metadata
     gdp_buf_t *direct_buf = gdp_datum_getbuf(direct_datum);
     size_t buf_len = gdp_buf_getlength(direct_buf);
     if (buf_len < INODE_SIZE) {
-        gdp_buf_free(direct_buf);
-        gdp_datum_free(direct_datum);
-        return EP_STAT_END_OF_FILE;
+        estat = EP_STAT_END_OF_FILE;
+        goto fail1;
     }
     inode_t inode2;
     gdp_buf_read(direct_buf, (void *) &inode2, INODE_SIZE);
+
     // Sanity check
     if ((buf_len < INODE_SIZE + BLOCK_SIZE
             && !inode2.has_indirect_block)
         || (buf_len < INODE_SIZE + INDIRECT_SIZE + BLOCK_SIZE
             && inode2.has_indirect_block)) {
-        gdp_buf_free(direct_buf);
-        gdp_datum_free(direct_datum);
-        return EP_STAT_END_OF_FILE;
+        estat = EP_STAT_END_OF_FILE;
+        goto fail1;
     }
+
     // Get raw data
     char data_buf[BLOCK_SIZE];
     if (inode2.has_indirect_block) {
@@ -100,6 +101,7 @@ capfs_file_read_block_from_recno(size_t recno, gdp_gin_t *ginp,
         gdp_buf_read(direct_buf, (void *) temp_buf, buf_size);
         memcpy(data_buf, temp_buf + INODE_SIZE, BLOCK_SIZE);
     }
+
     // Copy over relevant portions
     size_t start_byte = *offset % BLOCK_SIZE;
     size_t num = min(*size, BLOCK_SIZE - start_byte);
@@ -112,46 +114,62 @@ capfs_file_read_block_from_recno(size_t recno, gdp_gin_t *ginp,
     *offset += num;
     *size -= num;
     return EP_STAT_OK;
+
+fail1:
+    gdp_buf_free(direct_buf);
+fail0:
+    gdp_datum_free(direct_datum);
+    return estat;
 }
 
 static EP_STAT
 capfs_file_read_indirect_from_recno(size_t indirect_recno, gdp_gin_t *ginp,
         uint32_t indirect_block[DIRECT_IN_INDIRECT]) {
+    EP_STAT estat;
+
     // Open GIN
     gdp_datum_t *indirect_datum = gdp_datum_new();
-    if (!EP_STAT_ISOK(gdp_gin_read_by_recno(ginp, indirect_recno,
-                                            indirect_datum))) {
-        gdp_datum_free(indirect_datum);
-        return EP_STAT_END_OF_FILE;
-    }
+    estat = gdp_gin_read_by_recno(ginp, indirect_recno, indirect_datum);
+    EP_STAT_CHECK(estat, goto fail0);
+
     // Read datum into buffer, get indirect block
     gdp_buf_t *indirect_buf = gdp_datum_getbuf(indirect_datum);
     size_t buf_len = gdp_buf_getlength(indirect_buf);
-    size_t temp_buf_size = INODE_SIZE + INDIRECT_SIZE + BLOCK_SIZE;
-    if (buf_len < temp_buf_size) {
-        gdp_buf_free(indirect_buf);
-        gdp_datum_free(indirect_datum);
-        return EP_STAT_END_OF_FILE;
+    if (buf_len < INODE_SIZE + INDIRECT_SIZE + BLOCK_SIZE) {
+        estat = EP_STAT_END_OF_FILE;
+        goto fail1;
     }
-    char temp_buf[temp_buf_size];
-    gdp_buf_read(indirect_buf, (void *) temp_buf, temp_buf_size);
+    char temp_buf[INODE_SIZE + INDIRECT_SIZE + BLOCK_SIZE];
+    gdp_buf_read(indirect_buf, (void *) temp_buf,
+                 INODE_SIZE + INDIRECT_SIZE + BLOCK_SIZE);
     memcpy(indirect_block, temp_buf + INODE_SIZE, INDIRECT_SIZE);
+
     // Cleanup
     gdp_buf_free(indirect_buf);
     gdp_datum_free(indirect_datum);
     return EP_STAT_OK;
+
+fail1:
+    gdp_buf_free(indirect_buf);
+fail0:
+    gdp_datum_free(indirect_datum);
+    return estat;
 }
 
 static EP_STAT
 capfs_file_read_inode(gdp_gin_t *ginp, inode_t *inode, gdp_hash_t **prevhash) {
+    EP_STAT estat;
+
     // Open GIN
     gdp_datum_t *last_record = gdp_datum_new();
-    EP_STAT_CHECK(gdp_gin_read_by_recno(ginp, -1, last_record), goto fail0);
+    estat = gdp_gin_read_by_recno(ginp, -1, last_record);
+    EP_STAT_CHECK(estat, goto fail0);
 
     // Read datum into buffer, get inode
     gdp_buf_t *dbuf = gdp_datum_getbuf(last_record);
     size_t buf_len = gdp_buf_getlength(dbuf);
     if (buf_len < INODE_SIZE + BLOCK_SIZE) {   // returned data is too small
+        estat = EP_STAT_END_OF_FILE;
         goto fail1;
     }
     gdp_buf_read(dbuf, (void *) inode, INODE_SIZE);
@@ -166,19 +184,22 @@ fail1:
     gdp_buf_free(dbuf);
 fail0:
     gdp_datum_free(last_record);
-    return EP_STAT_NOT_FOUND;
+    return estat;
 }
 
 EP_STAT
 capfs_file_read(capfs_file_t *file, char *buf, size_t size, off_t offset) {
+    EP_STAT estat;
     gdp_gin_t *ginp = file->ginp;
 
     // Read inode
     inode_t inode;
-    EP_STAT_CHECK(capfs_file_read_inode(ginp, &inode, NULL), goto fail0);
+    estat = capfs_file_read_inode(ginp, &inode, NULL);
+    EP_STAT_CHECK(estat, goto fail0);
 
     // Error checking
     if (inode.length < offset + size) {
+        estat = EP_STAT_END_OF_FILE;
         goto fail0;
     }
 
@@ -186,9 +207,9 @@ capfs_file_read(capfs_file_t *file, char *buf, size_t size, off_t offset) {
     while (!capfs_file_offset_requires_indirect(offset) && size > 0) {
         size_t ptr = capfs_file_inode_ptr(offset);
         uint32_t recno = inode.direct_ptrs[ptr];
-        EP_STAT_CHECK(capfs_file_read_block_from_recno(recno, ginp, &buf, &size,
-                                                       &offset),
-                      goto fail0);
+        estat = capfs_file_read_block_from_recno(recno, ginp, &buf, &size,
+                                                 &offset);
+        EP_STAT_CHECK(estat, goto fail0);
     }
 
     // Get indirect block, perform lookups, write to buf
@@ -197,16 +218,16 @@ capfs_file_read(capfs_file_t *file, char *buf, size_t size, off_t offset) {
         uint32_t indirect_recno = inode.indirect_ptrs[ptr - DIRECT_PTRS];
         // Get indirect block
         uint32_t indirect_block[DIRECT_IN_INDIRECT];
-        EP_STAT_CHECK(capfs_file_read_indirect_from_recno(indirect_recno, ginp,
-                                                          indirect_block),
-                      goto fail0);
+        estat = capfs_file_read_indirect_from_recno(indirect_recno, ginp,
+                                                    indirect_block);
+        EP_STAT_CHECK(estat, goto fail0);
         // Iterate within indirect block
         while (capfs_file_inode_ptr(offset) == ptr && size > 0) {
             size_t index = capfs_file_indirect_ptr(offset);
             uint32_t recno = indirect_block[index];
-            EP_STAT_CHECK(capfs_file_read_block_from_recno(recno, ginp, &buf,
-                                                           &size, &offset),
-                          goto fail0);
+            estat = capfs_file_read_block_from_recno(recno, ginp, &buf, &size,
+                                                     &offset);
+            EP_STAT_CHECK(estat, goto fail0);
         }
     }
 
@@ -214,7 +235,7 @@ capfs_file_read(capfs_file_t *file, char *buf, size_t size, off_t offset) {
     return EP_STAT_OK;
 
 fail0:
-    return EP_STAT_NOT_FOUND;
+    return estat;
 }
 
 static EP_STAT
@@ -222,6 +243,8 @@ capfs_file_write_record(gdp_gin_t *ginp, gdp_hash_t *prevhash,
                         gdp_hash_t **newhash, inode_t *inode,
                         uint32_t indirect_block[DIRECT_IN_INDIRECT],
                         char data_block[BLOCK_SIZE]) {
+    EP_STAT estat;
+
     gdp_datum_t *datum = gdp_datum_new();
     gdp_buf_t *buf = gdp_datum_getbuf(datum);
 
@@ -240,7 +263,8 @@ capfs_file_write_record(gdp_gin_t *ginp, gdp_hash_t *prevhash,
         gdp_buf_write(buf, (void *) payload, size);
     }
 
-    EP_STAT_CHECK(gdp_gin_append(ginp, datum, prevhash), goto fail0);
+    estat = gdp_gin_append(ginp, datum, prevhash);
+    EP_STAT_CHECK(estat, goto fail0);
     *newhash = gdp_datum_hash(datum, ginp);
 
     gdp_buf_free(buf);
@@ -250,7 +274,7 @@ capfs_file_write_record(gdp_gin_t *ginp, gdp_hash_t *prevhash,
 fail0:
     gdp_buf_free(buf);
     gdp_datum_free(datum);
-    return EP_STAT_NOT_FOUND;
+    return estat;
 }
 
 static EP_STAT
@@ -258,6 +282,8 @@ capfs_file_write_block(gdp_gin_t *ginp, gdp_hash_t **prevhash, uint32_t recno,
                        inode_t *inode,
                        uint32_t indirect_block[DIRECT_IN_INDIRECT],
                        const char **buf, size_t *size, off_t *offset) {
+    EP_STAT estat;
+
     size_t local_offset = *offset % BLOCK_SIZE;
     size_t num;
     char write_buf[BLOCK_SIZE];
@@ -266,10 +292,10 @@ capfs_file_write_block(gdp_gin_t *ginp, gdp_hash_t **prevhash, uint32_t recno,
         // Dummy variables so the originals are not modified
         size_t sz = *size;
         off_t off = *offset;
-        EP_STAT_CHECK(capfs_file_read_block_from_recno(recno, ginp,
-                                                       (char **) &write_buf,
-                                                       &sz, &off),
-                      goto fail0);
+        estat = capfs_file_read_block_from_recno(recno, ginp,
+                                                 (char **) &write_buf,
+                                                 &sz, &off);
+        EP_STAT_CHECK(estat, goto fail0);
         // Number of bytes we're writing
         num = min(*size, BLOCK_SIZE - local_offset);
         memcpy(write_buf + local_offset, *buf, num);
@@ -297,9 +323,9 @@ capfs_file_write_block(gdp_gin_t *ginp, gdp_hash_t **prevhash, uint32_t recno,
         inode->indirect_ptrs[inode_ptr - DIRECT_PTRS] = recno;
     }
     // Write to log
-    EP_STAT_CHECK(capfs_file_write_record(ginp, *prevhash, prevhash, inode,
-                                          indirect_block, write_buf),
-                  goto fail0);
+    estat = capfs_file_write_record(ginp, *prevhash, prevhash, inode,
+                                    indirect_block, write_buf);
+    EP_STAT_CHECK(estat, goto fail0);
 
     *offset += num;
     *buf += num;
@@ -307,21 +333,24 @@ capfs_file_write_block(gdp_gin_t *ginp, gdp_hash_t **prevhash, uint32_t recno,
     return EP_STAT_OK;
 
 fail0:
-    return EP_STAT_END_OF_FILE;
+    return estat;
 }
 
 EP_STAT
 capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
                  off_t offset) {
+    EP_STAT estat;
     gdp_gin_t *ginp = file->ginp;
 
     // Read inode
     inode_t inode;
     gdp_hash_t *prevhash;
-    EP_STAT_CHECK(capfs_file_read_inode(ginp, &inode, &prevhash), goto fail0);
+    estat = capfs_file_read_inode(ginp, &inode, &prevhash);
+    EP_STAT_CHECK(estat, goto fail0);
 
     // Error checking
     if (offset > inode.length) {
+        estat = EP_STAT_END_OF_FILE;
         goto fail0;
     }
 
@@ -329,9 +358,9 @@ capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
     while (!capfs_file_offset_requires_indirect(offset) && size > 0) {
         size_t ptr = capfs_file_inode_ptr(offset);
         uint32_t recno = inode.direct_ptrs[ptr];
-        EP_STAT_CHECK(capfs_file_write_block(ginp, &prevhash, recno, &inode,
-                                             NULL, &buf, &size, &offset),
-                      goto fail0);
+        estat = capfs_file_write_block(ginp, &prevhash, recno, &inode,
+                                       NULL, &buf, &size, &offset);
+        EP_STAT_CHECK(estat, goto fail0);
     }
 
     // Handle indirect ptrs
@@ -345,10 +374,9 @@ capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
             uint32_t indirect_recno = inode.indirect_ptrs[ \
                 indirect_ptr - DIRECT_PTRS];
             // Read indirect block
-            EP_STAT_CHECK(capfs_file_read_indirect_from_recno(indirect_recno,
-                                                              ginp,
-                                                              indirect_block),
-                          goto fail0);
+            estat = capfs_file_read_indirect_from_recno(indirect_recno, ginp,
+                                                        indirect_block);
+            EP_STAT_CHECK(estat, goto fail0);
         } else {    // just write data
             memset(indirect_block, 0, INDIRECT_SIZE);
         }
@@ -356,21 +384,20 @@ capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
         while (capfs_file_inode_ptr(offset) == indirect_ptr && size > 0) {
             size_t index = capfs_file_indirect_ptr(offset);
             uint32_t recno = indirect_block[index];
-            EP_STAT_CHECK(capfs_file_write_block(ginp, &prevhash, recno,
-                                                 &inode, indirect_block,
-                                                 &buf, &size, &offset),
-                          goto fail0);
+            estat = capfs_file_write_block(ginp, &prevhash, recno, &inode,
+                                           indirect_block,
+                                           &buf, &size, &offset);
+            EP_STAT_CHECK(estat, goto fail0);
         }
     }
     return EP_STAT_OK;
 
 fail0:
-    return EP_STAT_NOT_FOUND;
+    return estat;
 }
 
 EP_STAT
 capfs_file_create(const char *path, capfs_file_t **file) {
-    printf("1\n");
     EP_STAT estat;
 
     // Create GCI - prep for creating DataCapsule
@@ -378,26 +405,36 @@ capfs_file_create(const char *path, capfs_file_t **file) {
     estat = gdp_create_info_set_creator(gci, "CapFS",
                                         "fa19.cs262.eecs.berkeley.edu");
     EP_STAT_CHECK(estat, goto fail0);
+    // Create a new key, save it in KEYS
+    estat = gdp_create_info_new_owner_key(gci, NULL, NULL, 0, NULL, "null");
+    EP_STAT_CHECK(estat, goto fail0);
 
-    printf("2\n");
     // Create DataCapsule
     char human_name[256];
     get_human_name(path, human_name);
-
     gdp_gin_t *ginp;
     estat = gdp_gin_create(gci, human_name, &ginp);
     EP_STAT_CHECK(estat, goto fail0);
-    *file = capfs_file_new(*gdp_gin_getname(ginp));
+
+    gdp_name_t gob;
+    memcpy(&gob, gdp_gin_getname(ginp), sizeof(gdp_name_t));
+
+    // Close and re-open the capsule (workaround)
+    estat = gdp_gin_close(ginp);
+    EP_STAT_CHECK(estat, goto fail1);
+    gdp_open_info_t *goi = gdp_open_info_new();
+    estat = gdp_gin_open(gob, GDP_MODE_RA, goi, &ginp);
+    EP_STAT_CHECK(estat, goto fail2);
+
+    *file = capfs_file_new(gob);
     (*file)->ginp = ginp;
 
-    printf("3\n");
     // Get the hash of the zeroth log record
     gdp_datum_t *datum = gdp_datum_new();
     estat = gdp_gin_read_by_recno(ginp, 0, datum);
-    EP_STAT_CHECK(estat, goto fail1);
+    EP_STAT_CHECK(estat, goto fail3);
     gdp_hash_t *prevhash = gdp_datum_hash(datum, ginp);
 
-    printf("4\n");
     // Write inode
     inode_t inode;
     memset(&inode, 0, sizeof(inode_t));
@@ -419,18 +456,20 @@ capfs_file_create(const char *path, capfs_file_t **file) {
     gdp_buf_write(buf, payload, INODE_SIZE + BLOCK_SIZE);
 
     estat = gdp_gin_append(ginp, datum, prevhash);
-    EP_STAT_CHECK(estat, goto fail1);
-    printf("5\n");
+    EP_STAT_CHECK(estat, goto fail3);
 
     // Cleanup
     gdp_datum_free(datum);
     gdp_create_info_free(&gci);
     return EP_STAT_OK;
 
-fail1:
+fail3:
     gdp_datum_free(datum);
-    gdp_gin_delete(ginp);
     capfs_file_free(*file);
+fail2:
+    gdp_open_info_free(goi);
+fail1:
+    gdp_gin_delete(ginp);
 fail0:
     gdp_create_info_free(&gci);
     return estat;
@@ -438,16 +477,20 @@ fail0:
 
 EP_STAT
 capfs_file_open(const char *path, capfs_file_t **file) {
+    EP_STAT estat;
+
     gdp_open_info_t *goi = gdp_open_info_new();
     char human_name[256];
     get_human_name(path, human_name);
 
     gdp_name_t gob;
-    EP_STAT_CHECK(gdp_parse_name(human_name, gob), goto fail0);
+    estat = gdp_parse_name(human_name, gob);
+    EP_STAT_CHECK(estat, goto fail0);
     *file = capfs_file_new(gob);
 
     gdp_gin_t *ginp;
-    EP_STAT_CHECK(gdp_gin_open(gob, GDP_MODE_RO, goi, &ginp), goto fail1);
+    estat = gdp_gin_open(gob, GDP_MODE_RO, goi, &ginp);
+    EP_STAT_CHECK(estat, goto fail1);
     (*file)->ginp = ginp;
 
     gdp_open_info_free(goi);
@@ -457,13 +500,13 @@ fail1:
     capfs_file_free(*file);
 fail0:
     gdp_open_info_free(goi);
-    return EP_STAT_NOT_FOUND;
+    return estat;
 }
 
 capfs_file_t *
 capfs_file_new(const gdp_name_t gob) {
     capfs_file_t *file = calloc(sizeof(capfs_file_t), 1);
-    memcpy(file->gob, gob, 32);
+    memcpy(file->gob, gob, sizeof(gdp_name_t));
     return file;
 }
 
