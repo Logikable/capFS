@@ -31,7 +31,7 @@
 
 #define STR(s) _STR(s)
 #define _STR(s) #s
-#define ITER 7
+#define ITER 4873493
 
 #include <string.h>
 
@@ -44,6 +44,7 @@ gdp_gin_t *test_create(void) {
     gdp_create_info_t *gci = gdp_create_info_new();
     OK(gdp_create_info_set_creator(
         gci, "CapFS", "fa19.cs262.eecs.berkeley.edu"));
+    // OK(gdp_create_info_new_owner_key(gci, NULL, NULL, 0, NULL, NULL));
 
     char human_name[256];
     strcpy(human_name, FILE_PREFIX);
@@ -66,29 +67,37 @@ gdp_gin_t *test_open(void) {
     OK(gdp_parse_name(human_name, gob));
 
     gdp_gin_t *ginp;
-    OK(gdp_gin_open(gob, GDP_MODE_RO, goi, &ginp));
+    OK(gdp_gin_open(gob, GDP_MODE_RA, goi, &ginp));
     return ginp;
 }
 
 int main(int argc, char *argv[]) {
     init();
 
-    gdp_gin_t *ginp = test_open();
-    // gdp_gin_t *ginp = test_create();
+    // gdp_gin_t *ginp = test_open();
+    gdp_gin_t *ginp = test_create();
 
     gdp_datum_t *datum = gdp_datum_new();
     OK(gdp_gin_read_by_recno(ginp, 0, datum));
+    gdp_hash_t *prevhash = gdp_datum_hash(datum, ginp);
 
+    datum = gdp_datum_new();
     gdp_buf_t *dbuf = gdp_datum_getbuf(datum);
-    size_t len = gdp_buf_getlength(dbuf);
-    printf("%ld\n", len);
-
     char buf[256];
-    gdp_buf_read(dbuf, (void *) buf, 256);
+    memset(buf, 0xaa, 256);
+    gdp_buf_write(dbuf, buf, 256);
 
-    for (int i = 0; i < 256; i++)
-    {
-        printf("%02X", buf[i]);
-    }
-    printf("\n");
+    char pbuf[128];
+    PRINT_ESTAT(gdp_gin_append(ginp, datum, NULL), pbuf, 128);
+    // size_t len = gdp_buf_getlength(dbuf);
+    // printf("%ld\n", len);
+
+    // char buf[256];
+    // gdp_buf_read(dbuf, (void *) buf, 256);
+
+    // for (int i = 0; i < 256; i++)
+    // {
+    //     printf("%02X", buf[i]);
+    // }
+    // printf("\n");
 }

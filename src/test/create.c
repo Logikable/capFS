@@ -35,7 +35,8 @@
 int main(int argc, char *argv[]) {
     init();
 
-    const char *path = "test10";
+    const char *path = "test28";
     capfs_file_t *file;
-    OK(capfs_file_create(path, &file));
+    char buf[128];
+    PRINT_ESTAT(capfs_file_create(path, &file), buf, 128);
 }
