@@ -17,7 +17,6 @@ parser.add_option('-e', '--efs-dir',
 
 if __name__ == '__main__':
     print('options: {}'.format(options))
-    print('args: {}'.format(args))
 
     mode = options.mode
     capfs_dir = options.cap_fs_dir

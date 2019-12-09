@@ -30,6 +30,12 @@ read
 write
 ```
 
+```
+python main.py --help # will print useful options
+python main.py -m micro -c [capFs-mount-directory] -e [efs-mount-directory]
+```
+This command line tool will perform micro benchmark of read/create/write on given mounted directories.
+
 ## MacroBenchmarking
 ```
 # sequential read/write
