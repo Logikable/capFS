@@ -1,13 +1,9 @@
 # CapFS Benchmarking
+Details: https://docs.google.com/document/d/1UFXS5OLRtr4HG6aCcXR9TU7djOrmNMDJsQIit0jIE9w/edit?fbclid=IwAR3hotN1X4J0LvWQ0_kne9FbeuT9jeWlHlsp6cwnEP_nym0Ad6ev5whrvTU
+Check the Evaluation section.
 
 ## Environment
 Ubuntu 18 EC2 VM. Spec TBD
-
-## Benchmarking Language
-Python3.7 
-```bash
-pip install -r requirements.txt
-```
 
 ## FS
 - EFS: Amazon's NFS 
