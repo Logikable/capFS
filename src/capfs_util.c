@@ -34,6 +34,8 @@
 
 #include <ep/ep_app.h>
 
+#include "capfs_file.h"
+
 static fh_entry_t *fh_list[64];
 
 void
@@ -116,4 +118,10 @@ free_tokens(char **tokens) {
         free(tokens[i]);
     }
     free(tokens);
+}
+
+void
+get_human_name(const char *path, char human_name[256]) {
+    strcpy(human_name, FILE_PREFIX);
+    strcat(human_name, path);
 }

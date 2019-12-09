@@ -66,16 +66,12 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 
     // Get a new file handler
     fh_entry_t *fh;
-    if (!EP_STAT_ISOK(fh_new(path, &fh))) {
-        goto fail0;
-    }
+    EP_STAT_CHECK(fh_new(path, &fh), goto fail0);
     fi->fh = fh->fh;
 
     // Create the file in GDP
     capfs_file_t *file;
-    if (!EP_STAT_ISOK(capfs_file_create(path, &file))) {
-        goto fail0;
-    }
+    EP_STAT_CHECK(capfs_file_create(path, &file), goto fail0);
     // TODO: put file in directory
 
     // Store GOB

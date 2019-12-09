@@ -55,4 +55,6 @@ void fh_free(uint64_t fh);
 size_t split_path(const char *path, char ***tokens);
 void free_tokens(char **tokens);
 
+void get_human_name(const char *path, char human_name[256]);
+
 #endif // _CAPFS_UTIL_H_

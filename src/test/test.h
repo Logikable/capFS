@@ -27,18 +27,8 @@
 **  ----- END LICENSE BLOCK -----
 */
 
-#include "test.h"
+#include <assert.h>
 
 #include <ep/ep.h>
 
-#include "capfs.h"
-#include "capfs_file.h"
-
-int main(int argc, char *argv[]) {
-    init();
-
-    capfs_file_t *file = capfs_file_new();
-    char buf[256];
-    memset(buf, 0, 256);
-    capfs_file_read(file, buf, );
-}
+#define OK(ep) assert(EP_STAT_ISOK(ep))

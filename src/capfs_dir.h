@@ -39,6 +39,14 @@ typedef struct capfs_dir {
     capfs_file_t *file;
 } capfs_dir_t;
 
+typedef struct capfs_dir_entry {
+    unsigned int is_dir : 1;
+    unsigned int length : 8;
+    unsigned int padding : 23;
+    char gob[32];
+    char name[128];
+} capfs_dir_entry_t;
+
 capfs_dir_t *capfs_dir_get_root(void);
 bool capfs_dir_has_child(capfs_dir_t *dir, const char *path);
 EP_STAT capfs_dir_get_child(capfs_dir_t *dir, const char *path,

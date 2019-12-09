@@ -25,11 +25,10 @@ OBJ = $(patsubst %.$(EXT), $(BUILDDIR)/%.o, $(SOURCES))
 MNTPOINT = /mnt/capfs
 MNTFLAGS = -f $(MNTPOINT)
 
+TEST = gdp.c
 TESTDIR = test
-# TESTSRCS = $(wildcard $(TESTDIR)/*.c)
-TESTSRCS = gdp.c
 TESTOUT = capfs_test
-TESTOBJ = $(patsubst %.$(EXT), $(BUILDDIR)/%.o, $(TESTSRCS))
+TESTOBJ = $(patsubst %.$(EXT), $(BUILDDIR)/%.o, $(TEST))
 
 build: $(BINDIR)/$(BINOUT)
 

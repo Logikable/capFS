@@ -27,16 +27,14 @@
 **  ----- END LICENSE BLOCK -----
 */
 
+#include "test.h"
+
 #define STR(s) _STR(s)
 #define _STR(s) #s
 #define ITER 7
 
-#define OK(ep) assert(EP_STAT_ISOK(ep))
-
-#include <assert.h>
 #include <string.h>
 
-#include <ep/ep.h>
 #include <gdp/gdp.h>
 
 #include "capfs.h"

@@ -10,4 +10,4 @@ Mount:
 
 Clean: `make clean`
 
-Test: `make test`
+Test: `make test TEST=[test_name].c`

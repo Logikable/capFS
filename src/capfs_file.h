@@ -54,6 +54,7 @@
 
 typedef struct capfs_file {
     gdp_name_t gob;
+    gdp_gin_t *ginp;
 } capfs_file_t;
 
 typedef struct inode {
@@ -71,6 +72,8 @@ EP_STAT capfs_file_read(capfs_file_t *file, char *buf, size_t size,
 EP_STAT capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
                          off_t offset);
 EP_STAT capfs_file_create(const char *path, capfs_file_t **file);
+EP_STAT capfs_file_open(const char *path, capfs_file_t **file);
+
 capfs_file_t *capfs_file_new(const gdp_name_t gob);
 void capfs_file_free(capfs_file_t *file);
 

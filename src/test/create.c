@@ -29,16 +29,13 @@
 
 #include "test.h"
 
-#include <ep/ep.h>
-
 #include "capfs.h"
 #include "capfs_file.h"
 
 int main(int argc, char *argv[]) {
     init();
 
-    capfs_file_t *file = capfs_file_new();
-    char buf[256];
-    memset(buf, 0, 256);
-    capfs_file_read(file, buf, );
+    const char *path = "test10";
+    capfs_file_t *file;
+    OK(capfs_file_create(path, &file));
 }

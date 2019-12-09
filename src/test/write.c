@@ -27,6 +27,8 @@
 **  ----- END LICENSE BLOCK -----
 */
 
+#include "test.h"
+
 #include <ep/ep.h>
 
 #include "capfs.h"
