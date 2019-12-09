@@ -32,3 +32,4 @@
 #include <ep/ep.h>
 
 #define OK(ep) assert(EP_STAT_ISOK(ep))
+#define PRINT_ESTAT(ep, buf, sz) printf("%s\n", ep_stat_tostr(ep, buf, sz));

@@ -370,26 +370,34 @@ fail0:
 
 EP_STAT
 capfs_file_create(const char *path, capfs_file_t **file) {
+    printf("1\n");
+    EP_STAT estat;
+
     // Create GCI - prep for creating DataCapsule
     gdp_create_info_t *gci = gdp_create_info_new();
-    EP_STAT_CHECK(gdp_create_info_set_creator(gci, "CapFS",
-                                              "fa19.cs262.eecs.berkeley.edu"),
-                  goto fail0);
+    estat = gdp_create_info_set_creator(gci, "CapFS",
+                                        "fa19.cs262.eecs.berkeley.edu");
+    EP_STAT_CHECK(estat, goto fail0);
 
+    printf("2\n");
     // Create DataCapsule
     char human_name[256];
     get_human_name(path, human_name);
 
     gdp_gin_t *ginp;
-    EP_STAT_CHECK(gdp_gin_create(gci, human_name, &ginp), goto fail0);
+    estat = gdp_gin_create(gci, human_name, &ginp);
+    EP_STAT_CHECK(estat, goto fail0);
     *file = capfs_file_new(*gdp_gin_getname(ginp));
     (*file)->ginp = ginp;
 
+    printf("3\n");
     // Get the hash of the zeroth log record
     gdp_datum_t *datum = gdp_datum_new();
-    EP_STAT_CHECK(gdp_gin_read_by_recno(ginp, 0, datum), goto fail1);
+    estat = gdp_gin_read_by_recno(ginp, 0, datum);
+    EP_STAT_CHECK(estat, goto fail1);
     gdp_hash_t *prevhash = gdp_datum_hash(datum, ginp);
 
+    printf("4\n");
     // Write inode
     inode_t inode;
     memset(&inode, 0, sizeof(inode_t));
@@ -410,7 +418,9 @@ capfs_file_create(const char *path, capfs_file_t **file) {
     gdp_buf_t *buf = gdp_datum_getbuf(datum);
     gdp_buf_write(buf, payload, INODE_SIZE + BLOCK_SIZE);
 
-    EP_STAT_CHECK(gdp_gin_append(ginp, datum, prevhash), goto fail1);
+    estat = gdp_gin_append(ginp, datum, prevhash);
+    EP_STAT_CHECK(estat, goto fail1);
+    printf("5\n");
 
     // Cleanup
     gdp_datum_free(datum);
@@ -423,7 +433,7 @@ fail1:
     capfs_file_free(*file);
 fail0:
     gdp_create_info_free(&gci);
-    return EP_STAT_NOT_FOUND;
+    return estat;
 }
 
 EP_STAT

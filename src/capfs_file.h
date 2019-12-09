@@ -33,20 +33,20 @@
 #define FILE_PREFIX "edu.berkeley.eecs.cs262.fa19.capfs.1."
 
 // In bytes
-#define INODE_SIZE (16 * 1024)
-#define INDIRECT_SIZE (16 * 1024)
-#define BLOCK_SIZE (128 * 1024)
+#define INODE_SIZE (8 * 1024)
+#define INDIRECT_SIZE (8 * 1024)
+#define BLOCK_SIZE (32 * 1024)
 #define INODE_METADATA_SIZE 16
 // Number of ptrs
 #define DIRECT_PTRS (3 / 4 * (INODE_SIZE / 4))
 #define INDIRECT_PTRS ((INODE_SIZE - INODE_METADATA_SIZE - DIRECT_PTRS * 4) / 4)
 #define DIRECT_IN_INDIRECT (INDIRECT_SIZE / 4)
 // In bytes
-// Amount stored in just direct pointers: roughly 400MB
+// Amount stored in just direct pointers: 48MB
 #define DIRECT_PTRS_SIZE (DIRECT_PTRS * BLOCK_SIZE)
 // Size of one indirect ptr
 #define INDIRECT_PTR_SIZE (DIRECT_IN_INDIRECT * BLOCK_SIZE)
-// Roughly 500GB+
+// Roughly 32GB
 // #define MAX_FILE_SIZE (DIRECT_PTRS_SIZE + INDIRECT_PTRS * INDIREC_PTR_SIZE)
 
 #include <ep/ep.h>
