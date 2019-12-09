@@ -3,23 +3,31 @@ Details: https://docs.google.com/document/d/1UFXS5OLRtr4HG6aCcXR9TU7djOrmNMDJsQI
 Check the Evaluation section.
 
 ## Environment
-Ubuntu 18 EC2 VM. Spec TBD
+Ubuntu 18 EC2 VM. 
+```
+Spec
+Intel(R) Xeon(R) CPU E5-2686 v4 @ 2.30GHz
+2 cores
+8G memory
+```
 
 ## FS
 - EFS: Amazon's NFS 
 - CapFS: GDP append-only logging filesystem
+
+## EFS Setup
+EFS is set and mounted on the directory efs_mount_point
+CapFS will be mounted at the dir cap-fs_mount_point
 
 ## Possible Performance Gap
 Presumably, CapFS will have much worse performance because of host environment. 
 We need to figure out how to take into account of GDP's poor hosting env.
 
 ## MicroBenchmarking
-```python
+```
 create
 read
 write
-open
-close
 ```
 
 ## MacroBenchmarking
