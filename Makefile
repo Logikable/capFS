@@ -9,3 +9,5 @@ clean:
 	@(cd $(SRCDIR) && $(MAKE) clean)
 run:
 	@(cd $(SRCDIR) && $(MAKE) run)
+test:
+	@(cd $(SRCDIR) && $(MAKE) test)

@@ -27,10 +27,16 @@
 **  ----- END LICENSE BLOCK -----
 */
 
-#ifndef _CAPFS_H_
-#define _CAPFS_H_
+#include <ep/ep.h>
 
-void init(void);
-int run(int argc, char *argv[]);
+#include "capfs.h"
+#include "capfs_file.h"
 
-#endif // _CAPFS_H_
+int main(int argc, char *argv[]) {
+    init();
+
+    capfs_file_t *file = capfs_file_new();
+    char buf[256];
+    memset(buf, 0, 256);
+    capfs_file_read(file, buf, );
+}

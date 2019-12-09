@@ -27,10 +27,8 @@
 **  ----- END LICENSE BLOCK -----
 */
 
-#ifndef _CAPFS_H_
-#define _CAPFS_H_
+#include "capfs.h"
 
-void init(void);
-int run(int argc, char *argv[]);
-
-#endif // _CAPFS_H_
+int main(int argc, char *argv[]) {
+    return run(argc, argv);
+}

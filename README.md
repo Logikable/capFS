@@ -4,8 +4,10 @@
 
 Build: `make`
 
-Clean: `make clean`
-
 Mount: 
  * `make run`, or
  * `bin/capfs -f [mount point]`
+
+Clean: `make clean`
+
+Test: `make test`

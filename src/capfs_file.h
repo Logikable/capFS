@@ -30,6 +30,8 @@
 #ifndef _CAPFS_FILE_H_
 #define _CAPFS_FILE_H_
 
+#define FILE_PREFIX "edu.berkeley.eecs.cs262.fa19.capfs.1."
+
 // In bytes
 #define INODE_SIZE (16 * 1024)
 #define INDIRECT_SIZE (16 * 1024)
@@ -68,7 +70,8 @@ EP_STAT capfs_file_read(capfs_file_t *file, char *buf, size_t size,
                         off_t offset);
 EP_STAT capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
                          off_t offset);
-capfs_file_t *capfs_file_new(gdp_name_t gob);
+EP_STAT capfs_file_create(const char *path, capfs_file_t **file);
+capfs_file_t *capfs_file_new(const gdp_name_t gob);
 void capfs_file_free(capfs_file_t *file);
 
 #endif // _CAPFS_FILE_H_

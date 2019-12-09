@@ -180,6 +180,7 @@ capfs_file_read(capfs_file_t *file, char *buf, size_t size, off_t offset) {
         goto fail0;
     }
 
+    // Read inode
     inode_t inode;
     if (!EP_STAT_ISOK(capfs_file_read_inode(ginp, &inode, NULL))) {
         goto fail0;
@@ -237,8 +238,8 @@ capfs_file_write_record(gdp_gin_t *ginp, gdp_hash_t *prevhash,
                         gdp_hash_t **newhash, inode_t *inode,
                         uint32_t indirect_block[DIRECT_IN_INDIRECT],
                         char data_block[BLOCK_SIZE]) {
-    gdp_datum_t *datum = gdp_datum_new();   // TODO: free
-    gdp_buf_t *buf = gdp_datum_getbuf(datum);   // TODO: free
+    gdp_datum_t *datum = gdp_datum_new();
+    gdp_buf_t *buf = gdp_datum_getbuf(datum);
 
     if (indirect_block == NULL) {
         size_t size = INODE_SIZE + BLOCK_SIZE;
@@ -298,7 +299,7 @@ capfs_file_write_block(gdp_gin_t *ginp, gdp_hash_t **prevhash, uint32_t recno,
     // Update inode
     recno = inode->recno + 1;
     inode->recno = recno;
-    inode->has_indirect_block = 0;
+    inode->has_indirect_block = false;
     if (*offset + num > inode->length) {
         // Check if write exceeds file size
         inode->length = *offset + num;
@@ -339,6 +340,7 @@ capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
         goto fail0;
     }
 
+    // Read inode
     inode_t inode;
     gdp_hash_t *prevhash;
     if (!EP_STAT_ISOK(capfs_file_read_inode(ginp, &inode, &prevhash))) {
@@ -399,8 +401,47 @@ fail0:
     return EP_STAT_NOT_FOUND;
 }
 
+EP_STAT
+capfs_file_create(const char *path, capfs_file_t **file) {
+    // Create GCI - prep for creating DataCapsule
+    gdp_create_info_t *gci = gdp_create_info_new();
+    if (!EP_STAT_ISOK(gdp_create_info_set_creator(gci, "CapFS",
+                      "fa19.cs262.eecs.berkeley.edu"))) {
+        goto fail0;
+    }
+
+    // Create DataCapsule
+    char human_name[256];
+    strcpy(human_name, FILE_PREFIX);
+    strcat(human_name, path);
+
+    gdp_gin_t *ginp;
+    if (!EP_STAT_ISOK(gdp_gin_create(gci, human_name, &ginp))) {
+        goto fail0;
+    }
+    *file = capfs_file_new(*gdp_gin_getname(ginp));
+
+    // Write first record
+    inode_t inode;
+    memset(&inode, 0, sizeof(inode_t));
+    inode.is_dir = false;
+    inode.has_indirect_block = false;
+    inode.recno = 1;
+    inode.length = 0;
+
+    char data_block[BLOCK_SIZE];
+    memset(data_block, 0, BLOCK_SIZE);
+
+
+    return EP_STAT_OK;
+
+fail0:
+    gdp_create_info_free(&gci);
+    return EP_STAT_NOT_FOUND;
+}
+
 capfs_file_t *
-capfs_file_new(gdp_name_t gob) {
+capfs_file_new(const gdp_name_t gob) {
     capfs_file_t *file = calloc(sizeof(capfs_file_t), 1);
     memcpy(file->gob, gob, 32);
     return file;

@@ -19,15 +19,21 @@ PROTOFLAGS = --c_out=.
 BINDIR = ../bin
 BINOUT = capfs
 BUILDDIR = build
-SOURCES = $(patsubst %.proto, %.pb-c.c, $(PROTOSRCS)) $(wildcard *.$(EXT))
+SOURCES = $(patsubst %.proto, %.pb-c.c, $(PROTOSRCS)) $(wildcard capfs*.$(EXT))
 OBJ = $(patsubst %.$(EXT), $(BUILDDIR)/%.o, $(SOURCES))
 
 MNTPOINT = /mnt/capfs
 MNTFLAGS = -f $(MNTPOINT)
 
+TESTDIR = test
+# TESTSRCS = $(wildcard $(TESTDIR)/*.c)
+TESTSRCS = gdp.c
+TESTOUT = capfs_test
+TESTOBJ = $(patsubst %.$(EXT), $(BUILDDIR)/%.o, $(TESTSRCS))
+
 build: $(BINDIR)/$(BINOUT)
 
-$(BINDIR)/$(BINOUT): $(OBJ)
+$(BINDIR)/$(BINOUT): $(OBJ) $(BUILDDIR)/main.o
 	@mkdir -p $(@D)
 	$(CC) $^ -o $@ $(LFLAGS)
 
@@ -49,3 +55,14 @@ run: build
 	sudo mkdir -p $(MNTPOINT)
 	sudo chmod 447 $(MNTPOINT)
 	$(BINDIR)/$(BINOUT) $(MNTFLAGS)
+
+test: $(BINDIR)/$(TESTOUT)
+	$(BINDIR)/$(TESTOUT)
+
+$(BINDIR)/$(TESTOUT): $(OBJ) $(TESTOBJ)
+	@mkdir -p $(@D)
+	$(CC) $^ -o $@ $(LFLAGS)
+
+$(BUILDDIR)/%.o: $(TESTDIR)/%.$(EXT)
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@

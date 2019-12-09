@@ -35,17 +35,19 @@
 #include <ep/ep.h>
 #include <gdp/gdp.h>
 
+#ifndef FUSE_USE_VERSION
 #define FUSE_USE_VERSION 30
+#endif
+
 #include <fuse.h>
 
+#include "capfs_file.h"
 #include "capfs_util.h"
 
 static int
 capfs_access(const char *path, int mode) {
     return 0;
 }
-
-const char *FILE_PREFIX = "edu.berkeley.eecs.cs262.fa19.capfs.1.";
 
 static int
 capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
@@ -62,13 +64,6 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     size_t num_tokens = split_path(path, &path_tokens);
     char *file_name = path_tokens[num_tokens - 1];
 
-    // Create GCI - prep for creating DataCapsule
-    gdp_create_info_t *gci = gdp_create_info_new();
-    if (!EP_STAT_ISOK(gdp_create_info_set_creator(gci, "CapFS",
-                      "fa19.cs262.eecs.berkeley.edu"))) {
-        goto fail0;
-    }
-
     // Get a new file handler
     fh_entry_t *fh;
     if (!EP_STAT_ISOK(fh_new(path, &fh))) {
@@ -76,25 +71,19 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     }
     fi->fh = fh->fh;
 
-    // Create DataCapsule
-    char human_name[256];
-    strcpy(human_name, FILE_PREFIX);
-    strcat(human_name, path);
-
-    gdp_gin_t *ginp;
-    if (!EP_STAT_ISOK(gdp_gin_create(gci, human_name, &ginp))) {
-        goto fail1;
+    // Create the file in GDP
+    capfs_file_t *file;
+    if (!EP_STAT_ISOK(capfs_file_create(path, &file))) {
+        goto fail0;
     }
+    // TODO: put file in directory
+
     // Store GOB
-    memcpy(fh->gob, *gdp_gin_getname(ginp), 32);
-    // Cleanup
-    gdp_create_info_free(&gci);
+    memcpy(fh->gob, file->gob, 32);
     return 0;
 
-fail1:
-    fh_free(fh->fh);
 fail0:
-    gdp_create_info_free(&gci);
+    fh_free(fh->fh);
     return -ENOENT;
 }
 
@@ -195,12 +184,18 @@ static struct fuse_operations capfs_operations = {
     .write = capfs_write,
 };
 
-int main(int argc, char *argv[]) {
+void
+init(void) {
     fh_init();
 
     EP_STAT estat = gdp_init(NULL);
     if (!EP_STAT_ISOK(estat)) {
         exit(EX_UNAVAILABLE);
     }
+}
+
+int
+run(int argc, char *argv[]) {
+    init();
     return fuse_main(argc, argv, &capfs_operations, NULL);
 }
