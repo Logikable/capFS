@@ -35,22 +35,43 @@
 
 #include "capfs_file.h"
 
+// Numerical limit
+#define DIR_ENTRIES 186
+// Bytes
+#define DIR_ENTRY_SIZE (16 + 32 + FILE_NAME_MAX_LEN + 1)
+// Just under 32KB (should be less than BLOCK_SIZE)
+#define DIR_ENTRIES_SIZE (DIR_ENTRIES * DIR_ENTRY_SIZE)
+// 32 bytes
+#define DIR_META_SIZE (BLOCK_SIZE - DIR_ENTRIES_SIZE)
+// Should be exactly BLOCK_SIZE
+#define DIR_TABLE_SIZE (DIR_ENTRIES_SIZE + DIR_META_SIZE)
+
 typedef struct capfs_dir {
     capfs_file_t *file;
 } capfs_dir_t;
 
 typedef struct capfs_dir_entry {
-    unsigned int is_dir : 1;
-    unsigned int length : 8;
-    unsigned int padding : 23;
-    char gob[32];
-    char name[128];
+    unsigned is_dir : 1;
+    unsigned valid : 1;
+    unsigned padding1 : 6;
+
+    unsigned char padding2[15];
+    unsigned char gob[32];
+    char name[FILE_NAME_MAX_LEN + 1];
 } capfs_dir_entry_t;
 
-capfs_dir_t *capfs_dir_get_root(void);
-bool capfs_dir_has_child(capfs_dir_t *dir, const char *path);
-EP_STAT capfs_dir_get_child(capfs_dir_t *dir, const char *path,
-                            capfs_dir_t **child);
+typedef struct capfs_dir_table {
+    unsigned char padding[DIR_META_SIZE];
+    capfs_dir_entry_t entries[DIR_ENTRIES];
+} capfs_dir_table_t;
+
+EP_STAT capfs_dir_get_root(capfs_dir_t **dir);
+EP_STAT capfs_dir_opendir(capfs_dir_t *parent, const char *name,
+                          capfs_dir_t **dir);
+EP_STAT capfs_dir_readdir(capfs_dir_t *dir,
+                          char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1],
+                          gdp_name_t gobs[DIR_ENTRIES]);
+capfs_dir_t *capfs_dir_new(capfs_file_t *file);
 void capfs_dir_free(capfs_dir_t *dir);
 
 #endif // _CAPFS_DIR_H_

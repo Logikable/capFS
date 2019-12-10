@@ -67,14 +67,14 @@ capfs_file_inode_print(inode_t *inode) {
     printf("recno: %d\n", inode->recno);
     printf("length: %ld\n", inode->length);
     printf("direct_ptrs: ");
-    for (int i = 0; i < DIRECT_PTRS; i++) {
+    for (size_t i = 0; i < DIRECT_PTRS; i++) {
         if (inode->direct_ptrs[i] != 0) {
             printf("%d, ", inode->direct_ptrs[i]);
         }
     }
     printf("\n");
     printf("indirect_ptrs: ");
-    for (int i = 0; i < INDIRECT_PTRS; i++) {
+    for (size_t i = 0; i < INDIRECT_PTRS; i++) {
         if (inode->indirect_ptrs[i] != 0) {
             printf("%d, ", inode->indirect_ptrs[i]);
         }
@@ -491,26 +491,38 @@ EP_STAT
 capfs_file_open(const char *path, capfs_file_t **file) {
     EP_STAT estat;
 
-    gdp_open_info_t *goi = gdp_open_info_new();
     char human_name[256];
     get_human_name(path, human_name);
 
     gdp_name_t gob;
     estat = gdp_parse_name(human_name, gob);
     EP_STAT_CHECK(estat, goto fail0);
+
+    return capfs_file_open_gob(gob, file);
+
+fail0:
+    return estat;
+}
+
+EP_STAT
+capfs_file_open_gob(gdp_name_t gob, capfs_file_t **file) {
+    EP_STAT estat;
+
+    // Make goi
+    gdp_open_info_t *goi = gdp_open_info_new();
     *file = capfs_file_new(gob);
 
+    // Open
     gdp_gin_t *ginp;
     estat = gdp_gin_open(gob, GDP_MODE_RA, goi, &ginp);
-    EP_STAT_CHECK(estat, goto fail1);
+    EP_STAT_CHECK(estat, goto fail0);
     (*file)->ginp = ginp;
 
     gdp_open_info_free(goi);
     return EP_STAT_OK;
 
-fail1:
-    capfs_file_free(*file);
 fail0:
+    capfs_file_free(*file);
     gdp_open_info_free(goi);
     return estat;
 }

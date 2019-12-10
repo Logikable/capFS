@@ -75,7 +75,7 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     // TODO: put file in directory
 
     // Store GOB
-    memcpy(fh->gob, file->gob, 32);
+    memcpy(fh->gob, file->gob, sizeof(gdp_name_t));
     return 0;
 
 fail0:

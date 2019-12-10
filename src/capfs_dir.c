@@ -29,22 +29,99 @@
 
 #include "capfs_dir.h"
 
-capfs_dir_t *
-capfs_dir_get_root(void) {
-    // TODO
-    return NULL;
-}
+#include <string.h>
 
-bool
-capfs_dir_has_child(capfs_dir_t *dir, const char *path) {
-    // TODO
-    return false;
+EP_STAT
+capfs_dir_get_root(capfs_dir_t **dir) {
+    EP_STAT estat;    
+    capfs_file_t *file;
+
+    estat = capfs_file_open("/", &file);
+    EP_STAT_CHECK(estat, goto fail0);
+    *dir = capfs_dir_new(file);
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
 }
 
 EP_STAT
-capfs_dir_get_child(capfs_dir_t *dir, const char *path, capfs_dir_t **child) {
-    // TODO
+capfs_dir_opendir(capfs_dir_t *parent, const char *name, capfs_dir_t **dir) {
+    EP_STAT estat;
+
+    // Read in names/gobs
+    char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1];
+    for (size_t i = 0; i < DIR_ENTRIES; i++) {
+        names[i][0] = '\0';
+    }
+    gdp_name_t gobs[DIR_ENTRIES];
+    estat = capfs_dir_readdir(parent, names, gobs);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Verify child is there
+    size_t index = 0;
+    for (; index < DIR_ENTRIES; index++) {
+        if (strcmp(names[index], name) == 0) {
+            break;
+        }
+    }
+    if (index == DIR_ENTRIES) {
+        estat = EP_STAT_NOT_FOUND;
+        goto fail0;
+    }
+
+    // Open the child
+    capfs_file_t *file;
+    estat = capfs_file_open_gob(gobs[index], &file);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    *dir = capfs_dir_new(file);
     return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+
+EP_STAT
+capfs_dir_readdir(capfs_dir_t *dir,
+                  char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1],
+                  gdp_name_t gobs[DIR_ENTRIES]) {
+    EP_STAT estat;
+
+    // Read file contents
+    char block_buf[DIR_TABLE_SIZE];
+    estat = capfs_file_read(dir->file, block_buf, DIR_TABLE_SIZE, 0);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Copy into capfs_dir_table_t
+    capfs_dir_table_t table;
+    memcpy(&table, block_buf, DIR_TABLE_SIZE);
+
+    // Copy table entry names and gobs
+    size_t index = 0;
+    for (size_t i = 0; i < DIR_ENTRIES; i++) {
+        capfs_dir_entry_t entry = table.entries[i];
+        if (!entry.valid) {
+            continue;
+        }
+        strncpy((char *) names + index, entry.name, FILE_NAME_MAX_LEN);
+        if (gobs != NULL) {
+            memcpy(gobs + index, entry.gob, sizeof(gdp_name_t));
+        }
+        index++;
+    }
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+capfs_dir_t *
+capfs_dir_new(capfs_file_t *file) {
+    capfs_dir_t *dir = calloc(sizeof(capfs_dir_t), 1);
+    dir->file = file;
+    return dir;
 }
 
 void

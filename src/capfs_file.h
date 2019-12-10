@@ -32,6 +32,8 @@
 
 #define FILE_PREFIX "edu.berkeley.eecs.cs262.fa19.capfs.1."
 
+#define FILE_NAME_MAX_LEN 127
+
 // In bytes
 #define INODE_SIZE (8 * 1024)
 #define INDIRECT_SIZE (8 * 1024)
@@ -61,6 +63,7 @@ typedef struct inode {
     unsigned is_dir : 1;            // File data
     unsigned has_indirect_block: 1; // Record data
     unsigned padding1 : 6;
+
     unsigned int recno;             // Record data
     unsigned long length;           // File data
     unsigned char padding2[3];  // Should be INODE_METADATA_SIZE - size of meta
@@ -74,7 +77,7 @@ EP_STAT capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
                          off_t offset);
 EP_STAT capfs_file_create(const char *path, capfs_file_t **file);
 EP_STAT capfs_file_open(const char *path, capfs_file_t **file);
-
+EP_STAT capfs_file_open_gob(gdp_name_t gob, capfs_file_t **file);
 capfs_file_t *capfs_file_new(const gdp_name_t gob);
 void capfs_file_free(capfs_file_t *file);
 
