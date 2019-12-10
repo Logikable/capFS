@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     OK(capfs_dir_open_root(&root));
 
     capfs_dir_t *dir;
-    OK(capfs_dir_mkdir(root, "/test2", "test2", &dir));
+    OK(capfs_dir_mkdir(root, "test2", &dir));
 
     printf("Success!\n");
 }

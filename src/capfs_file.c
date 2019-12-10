@@ -415,8 +415,8 @@ fail0:
     return estat;
 }
 
-EP_STAT
-capfs_file_create(const char *path, capfs_file_t **file) {
+static EP_STAT
+_capfs_file_create(const char *name, capfs_file_t **file) {
     EP_STAT estat;
 
     // Create GCI - prep for creating DataCapsule
@@ -429,10 +429,8 @@ capfs_file_create(const char *path, capfs_file_t **file) {
     EP_STAT_CHECK(estat, goto fail0);
 
     // Create DataCapsule
-    char human_name[256];
-    get_human_name(path, human_name);
     gdp_gin_t *ginp;
-    estat = gdp_gin_create(gci, human_name, &ginp);
+    estat = gdp_gin_create(gci, name, &ginp);
     EP_STAT_CHECK(estat, goto fail0);
 
     gdp_name_t gob;
@@ -491,6 +489,33 @@ fail1:
     gdp_gin_delete(ginp);
 fail0:
     gdp_create_info_free(&gci);
+    return estat;
+}
+
+EP_STAT
+capfs_file_create(const char *path, capfs_file_t **file) {
+    EP_STAT estat;
+
+    char human_name[256];
+    get_human_name(path, human_name);
+    estat = _capfs_file_create(human_name, file);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+EP_STAT
+capfs_file_create_gob(capfs_file_t **file) {
+    EP_STAT estat;
+
+    estat = _capfs_file_create(NULL, file);
+    EP_STAT_CHECK(estat, goto fail0);
+    return EP_STAT_OK;
+
+fail0:
     return estat;
 }
 

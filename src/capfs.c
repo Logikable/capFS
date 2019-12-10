@@ -42,6 +42,7 @@
 #include <fuse.h>
 
 #include "capfs_file.h"
+#include "capfs_dir.h"
 #include "capfs_util.h"
 
 static int
@@ -51,6 +52,8 @@ capfs_access(const char *path, int mode) {
 
 static int
 capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
+    (void) mode;
+
     // Error handling
     if (strlen(path) == 0) {
         return -ENOENT;
@@ -58,28 +61,55 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     if (path[strlen(path) - 1] == '/') {
         return -EISDIR;
     }
+    EP_STAT estat;
 
-    // TODO: check existence
+    // Check that the directory exists, but not the file
     char **path_tokens;
     size_t num_tokens = split_path(path, &path_tokens);
     char *file_name = path_tokens[num_tokens - 1];
 
+    capfs_dir_t *dir;
+    estat = capfs_dir_open_root(&dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Directory exists
+    for (size_t i = 0; i < num_tokens - 1; i++) {
+        capfs_dir_t *new_dir;
+        estat = capfs_dir_opendir(dir, path_tokens[i], &new_dir);
+        EP_STAT_CHECK(estat, goto fail1);
+        capfs_dir_closedir(dir);
+        dir = new_dir;
+    }
+
+    // File does not exist
+    capfs_file_t *file;
+    estat = capfs_dir_open_file(dir, file_name, &file);
+    if (EP_STAT_ISOK(estat)) {
+        capfs_file_close(file);
+        goto fail1;
+    }
+
     // Get a new file handler
     fh_entry_t *fh;
-    EP_STAT_CHECK(fh_new(path, &fh), goto fail0);
+    EP_STAT_CHECK(fh_new(path, &fh), goto fail2);
     fi->fh = fh->fh;
 
-    // Create the file in GDP
-    capfs_file_t *file;
-    EP_STAT_CHECK(capfs_file_create(path, &file), goto fail0);
-    // TODO: put file in directory
-
+    // Create the file in the directory
+    EP_STAT_CHECK(capfs_dir_make_file(dir, file_name, &file), goto fail2);
     // Store GOB
     memcpy(fh->gob, file->gob, sizeof(gdp_name_t));
+
+    // Cleanup
+    capfs_dir_closedir(dir);
+    free_tokens(path_tokens);
     return 0;
 
-fail0:
+fail2:
     fh_free(fh->fh);
+fail1:
+    capfs_dir_closedir(dir);
+fail0:
+    free_tokens(path_tokens);
     return -ENOENT;
 }
 

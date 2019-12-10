@@ -76,6 +76,8 @@ EP_STAT capfs_file_read(capfs_file_t *file, char *buf, size_t size,
 EP_STAT capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
                          off_t offset);
 EP_STAT capfs_file_create(const char *path, capfs_file_t **file);
+// Creates a file with no human_name, but is still accessible by gob
+EP_STAT capfs_file_create_gob(capfs_file_t **file);
 EP_STAT capfs_file_open(const char *path, capfs_file_t **file);
 EP_STAT capfs_file_open_gob(gdp_name_t gob, capfs_file_t **file);
 EP_STAT capfs_file_close(capfs_file_t *file);

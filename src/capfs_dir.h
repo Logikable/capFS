@@ -68,9 +68,9 @@ typedef struct capfs_dir_table {
 
 EP_STAT capfs_dir_make_root(void);
 EP_STAT capfs_dir_open_root(capfs_dir_t **dir);
-EP_STAT capfs_dir_make_file(capfs_dir_t *parent, const char *path,
-                            const char *name, capfs_file_t **file);
-EP_STAT capfs_dir_mkdir(capfs_dir_t *parent, const char *path, const char *name,
+EP_STAT capfs_dir_make_file(capfs_dir_t *parent, const char *name,
+                            capfs_file_t **file);
+EP_STAT capfs_dir_mkdir(capfs_dir_t *parent, const char *name,
                         capfs_dir_t **dir);
 EP_STAT capfs_dir_open_file(capfs_dir_t *parent, const char *name,
                             capfs_file_t **file);

@@ -82,7 +82,7 @@ fail0:
 }
 
 static EP_STAT
-capfs_dir_make_step_1(capfs_dir_t *parent, const char *path, const char *name,
+capfs_dir_make_step_1(capfs_dir_t *parent, const char *name,
                       capfs_file_t **file, capfs_dir_table_t *parent_table) {
     if (parent == NULL) {
         return EP_STAT_INVALID_ARG;
@@ -115,7 +115,7 @@ capfs_dir_make_step_1(capfs_dir_t *parent, const char *path, const char *name,
     }
 
     // Create new file (for child)
-    estat = capfs_file_create(path, file);
+    estat = capfs_file_create_gob(file);
     EP_STAT_CHECK(estat, goto fail0);
     return EP_STAT_OK;
 
@@ -162,12 +162,12 @@ fail0:
 }
 
 EP_STAT
-capfs_dir_make_file(capfs_dir_t *parent, const char *path, const char *name,
+capfs_dir_make_file(capfs_dir_t *parent, const char *name, 
                     capfs_file_t **file) {
     EP_STAT estat;
 
     capfs_dir_table_t parent_table;
-    estat = capfs_dir_make_step_1(parent, path, name, file, &parent_table);
+    estat = capfs_dir_make_step_1(parent, name, file, &parent_table);
     EP_STAT_CHECK(estat, goto fail0);
 
     estat = capfs_dir_make_step_2(parent, name, false, *file, &parent_table);
@@ -180,14 +180,13 @@ fail0:
 }
 
 EP_STAT
-capfs_dir_mkdir(capfs_dir_t *parent, const char *path, const char *name,
-                capfs_dir_t **dir) {
+capfs_dir_mkdir(capfs_dir_t *parent, const char *name, capfs_dir_t **dir) {
     EP_STAT estat;
 
     capfs_file_t *file;
     capfs_dir_table_t parent_table;
 
-    estat = capfs_dir_make_step_1(parent, path, name, &file, &parent_table);
+    estat = capfs_dir_make_step_1(parent, name, &file, &parent_table);
     EP_STAT_CHECK(estat, goto fail0);
     *dir = capfs_dir_new(file);
 

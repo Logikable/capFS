@@ -92,7 +92,7 @@ split_path(const char *path, char ***tokens) {
     size_t index = 1;
     size_t tokens_index = 0;
     while ((c = path[index]) != '\0' && tokens_index < 32) {
-        if (c == '/') {
+        if (c == '/' || path[index + 1] == '\0') {
             *tokens[tokens_index] = calloc(sizeof(char), 128);
             size_t length = index - prev_index - 1;
             strncpy(*tokens[tokens_index], path + prev_index,
