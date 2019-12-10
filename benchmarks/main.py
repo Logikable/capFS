@@ -1,6 +1,7 @@
 from optparse import OptionParser
 
 from microbenchmark import MicroBenchmark
+from macrobenchmark import MacroBenchmark
 
 parser = OptionParser()
 parser.add_option('-m', '--mode',
@@ -40,7 +41,8 @@ if __name__ == '__main__':
         benchmark = MicroBenchmark(capfs_dir, efs_dir)
         benchmark.run(create_frequency=frequency, iteration_cnt=iteration_cnt, clean_files=clean_files)
     elif mode == 'macro':
-        pass
+        benchmark = MacroBenchmark(capfs_dir, efs_dir)
+        benchmark.run()
     else:
         print('mode should be either micro or macro')
 
