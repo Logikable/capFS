@@ -32,7 +32,7 @@ write
 
 ```
 python main.py --help # will print useful options
-python main.py -m micro -c [capFs-mount-directory] -e [efs-mount-directory] [-f: this flag will clean files created after performing benchmark.]
+python main.py -m micro -c [capFs-mount-directory] -e [efs-mount-directory] [-s if this flag is set, it will clean files created after performing benchmark.] [-i number of microbenchmark read/write performed to average out] [-f number of files created for creation micro benchmark]
 ```
 This command line tool will perform micro benchmark of read/create/write on given mounted directories.
 
