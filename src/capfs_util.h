@@ -49,7 +49,6 @@ typedef struct fh_entry {
     uint64_t fh;
     bool valid;
     bool is_dir;
-    gdp_name_t gob;
     union {
         capfs_dir_t *dir;
         capfs_file_t *file;

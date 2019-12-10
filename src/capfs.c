@@ -80,7 +80,8 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 
     // Get a new file handler
     fh_entry_t *fh;
-    EP_STAT_CHECK(fh_new(&fh), goto fail2);
+    estat = fh_new(&fh);
+    EP_STAT_CHECK(estat, goto fail2);
     fi->fh = fh->fh;
 
     // Create the file in the directory
@@ -89,7 +90,6 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     // Store data in file handler
     fh->is_dir = false;
     fh->file = file;
-    memcpy(fh->gob, file->gob, sizeof(gdp_name_t));
 
     // Cleanup
     capfs_dir_closedir(dir);
@@ -174,6 +174,7 @@ fail0:
     return -ENOENT;
 }
 
+// TODO: count # of references (here and opendir)
 static int
 capfs_open(const char *path, struct fuse_file_info *fi) {
     // Error handling
@@ -201,13 +202,13 @@ capfs_open(const char *path, struct fuse_file_info *fi) {
 
     // Get a new file handler
     fh_entry_t *fh;
-    EP_STAT_CHECK(fh_new(&fh), goto fail1);
+    estat = fh_new(&fh);
+    EP_STAT_CHECK(estat, goto fail1);
     fi->fh = fh->fh;
 
     // Store data in file handler
     fh->is_dir = false;
     fh->file = file;
-    memcpy(fh->gob, file->gob, sizeof(gdp_name_t));
 
     // Cleanup
     capfs_dir_closedir(dir);
@@ -247,13 +248,13 @@ capfs_opendir(const char *path, struct fuse_file_info *fi) {
 
     // Get a new file handler
     fh_entry_t *fh;
-    EP_STAT_CHECK(fh_new(&fh), goto fail1);
+    estat = fh_new(&fh);
+    EP_STAT_CHECK(estat, goto fail1);
     fi->fh = fh->fh;
 
     // Store data in file handler
     fh->is_dir = true;
     fh->dir = child;
-    memcpy(fh->gob, child->file->gob, sizeof(gdp_name_t));
 
     // Cleanup
     capfs_dir_closedir(dir);
@@ -270,15 +271,59 @@ fail0:
 static int
 capfs_read(const char *path, char *buf, size_t size, off_t offset,
            struct fuse_file_info *fi) {
+    (void) path;
+    EP_STAT estat;
+
+    fh_entry_t *fh;
+    estat = fh_get(fi->fh, &fh);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Sanity checks
+    if (!fh->valid || fh->is_dir) {
+        goto fail0;
+    }
+
+    estat = capfs_file_read(fh->file, buf, size, offset);
+    EP_STAT_CHECK(estat, goto fail0);
     return 0;
+
+fail0:
+    return -ENOENT;
 }
 
 static int
 capfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
               off_t offset, struct fuse_file_info *fi) {
+    (void) path;
+    (void) offset;
+    EP_STAT estat;
+
+    fh_entry_t *fh;
+    estat = fh_get(fi->fh, &fh);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Sanity checks
+    if (!fh->valid || !fh->is_dir) {
+        goto fail0;
+    }
+
+    // Read in names
+    capfs_dir_table_t table;
+    char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1];
+    estat = capfs_dir_readdir(fh->dir, &table, names, NULL);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Push names through filler
+    for (size_t i = 0; i < table.length; i++) {
+        filler(buf, names[i], NULL, 0);
+    }
     return 0;
+
+fail0:
+    return -ENOENT;
 }
 
+// Equivalent to file_close
 static int
 capfs_release(const char *path, struct fuse_file_info *fi) {
     return 0;

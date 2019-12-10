@@ -31,6 +31,40 @@
 
 #include <string.h>
 
+static EP_STAT
+capfs_dir_table_insert_entry(capfs_dir_table_t *table, const char *name,
+                             bool is_dir, gdp_name_t gob) {
+    EP_STAT estat;
+
+    // Make capfs_dir_entry_t
+    capfs_dir_entry_t new_entry;
+    new_entry.is_dir = is_dir;
+    new_entry.valid = true;
+    memcpy(new_entry.gob, gob, sizeof(gdp_name_t));
+    strcpy(new_entry.name, name);
+
+    // Insert entry into available slot (for parent)
+    size_t i = 0;
+    for (; i < DIR_ENTRIES; i++) {
+        capfs_dir_entry_t entry = table->entries[i];
+        if (!entry.valid) {
+            memcpy(table->entries + i, &new_entry, DIR_ENTRY_SIZE);
+            break;
+        }
+    }
+    // Sanity check
+    if (i == DIR_ENTRIES) {
+        estat = EP_STAT_OUT_OF_MEMORY;
+        goto fail0;
+    }
+    table->length++;
+
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
 // Should only be called manually! See test/make_root.c
 EP_STAT
 capfs_dir_make_root(void) {
@@ -49,10 +83,17 @@ capfs_dir_make_root(void) {
     estat = capfs_file_create("/", &file);
     EP_STAT_CHECK(estat, goto fail0);
 
-    // Write empty directory (for child)
-    capfs_dir_table_t child_table;
-    memset(&child_table, 0, DIR_TABLE_SIZE);
-    estat = capfs_file_write(file, (const char *) &child_table, DIR_TABLE_SIZE, 0);
+    // Write empty directory
+    capfs_dir_table_t table;
+    memset(&table, 0, DIR_TABLE_SIZE);
+    // Add . and ..
+    estat = capfs_dir_table_insert_entry(&table, ".", true, file->gob);
+    EP_STAT_CHECK(estat, goto fail1);
+    estat = capfs_dir_table_insert_entry(&table, "..", true, file->gob);
+    EP_STAT_CHECK(estat, goto fail1);
+    // Commit
+    estat = capfs_file_write(file, (const char *) &table, DIR_TABLE_SIZE,
+                             0);
     EP_STAT_CHECK(estat, goto fail1);
 
     // Close & Cleanup
@@ -128,28 +169,8 @@ capfs_dir_make_step_2(capfs_dir_t *parent, const char *name, bool is_dir,
                       capfs_file_t *file, capfs_dir_table_t *parent_table) {
     EP_STAT estat;
 
-    // Make capfs_dir_entry_t (for parent)
-    capfs_dir_entry_t new_entry;
-    new_entry.is_dir = is_dir;
-    new_entry.valid = true;
-    memcpy(&new_entry.gob, &(file->gob), sizeof(gdp_name_t));
-    strcpy(new_entry.name, name);
-
-    // Insert entry into available slot (for parent)
-    size_t i = 0;
-    for (; i < DIR_ENTRIES; i++) {
-        capfs_dir_entry_t entry = parent_table->entries[i];
-        if (!entry.valid) {
-            memcpy(parent_table->entries + i, &new_entry, DIR_ENTRY_SIZE);
-            break;
-        }
-    }
-    // Sanity check
-    if (i == DIR_ENTRIES) {
-        estat = EP_STAT_OUT_OF_MEMORY;
-        goto fail0;
-    }
-    parent_table->length++;
+    estat = capfs_dir_table_insert_entry(parent_table, name, is_dir, file->gob);
+    EP_STAT_CHECK(estat, goto fail0);
 
     // Writeback (for parent)
     estat = capfs_file_write(parent->file, (const char *) parent_table,
@@ -193,6 +214,13 @@ capfs_dir_mkdir(capfs_dir_t *parent, const char *name, capfs_dir_t **dir) {
     // Write empty directory (for child)
     capfs_dir_table_t child_table;
     memset(&child_table, 0, DIR_TABLE_SIZE);
+    // Add . and ..
+    estat = capfs_dir_table_insert_entry(&child_table, ".", true, file->gob);
+    EP_STAT_CHECK(estat, goto fail1);
+    estat = capfs_dir_table_insert_entry(&child_table, "..", true,
+                                         parent->file->gob);
+    EP_STAT_CHECK(estat, goto fail1);
+    // Commit
     estat = capfs_file_write(file, (const char *) &child_table, DIR_TABLE_SIZE,
                              0);
     EP_STAT_CHECK(estat, goto fail1);

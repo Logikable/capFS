@@ -5,7 +5,7 @@ default: build
 CC = gcc
 WALL = -Wall
 DEBUG = -O0 -g -fvar-tracking
-FUSE_LIBS=`pkg-config fuse --cflags --libs`
+FUSE_LIBS = `pkg-config fuse --cflags --libs`
 
 CFLAGS = $(WALL) $(FUSE_LIBS) $(DEBUG) -I .
 LFLAGS = $(CFLAGS) -lgdp -lep -lprotobuf-c
