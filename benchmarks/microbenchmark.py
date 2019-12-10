@@ -55,35 +55,72 @@ class MicroBenchmark:
             print('\n\n')
 
     def read_benchmark(self, iteration_cnt, block_size):
-        print('=' * 60)
-        print('Mount point: {}'.format(self.cap_fs_mount_point))
-        print('Perform {} number of {} size read'.format(iteration_cnt, block_size))
-        capfs_latency = self._read(iteration_cnt, block_size, self.cap_fs_mount_point, 'capfs_read.txt')
-        print('read latency for CapFS {} times of {} block size: {}ms'
-              .format(iteration_cnt, block_size, capfs_latency))
-        print('=' * 60)
+        self._read_benchmark(iteration_cnt,
+                             block_size,
+                             self.cap_fs_mount_point,
+                             'capfs_read.txt',
+                             'capfs')
+        self._read_benchmark(iteration_cnt,
+                             block_size,
+                             self.efs_mount_point,
+                             'efs_read.txt',
+                             'efs')
 
     def write_benchmark(self, iteration_cnt, block_size, write_with_fsync):
-        print('=' * 60)
-        print('Mount point: {}'.format(self.cap_fs_mount_point))
-        print('Perform {} number of {} size read'.format(iteration_cnt, block_size))
-        print('Perform fsync for each iteration_cnt: {}'.format(write_with_fsync))
-        capfs_latency = self._write(iteration_cnt, block_size, self.cap_fs_mount_point, with_fsync=write_with_fsync)
-        print('write latency for CapFS {} times of {} block size: {}ms'
-              .format(iteration_cnt, block_size, capfs_latency))
-        print('=' * 60)
+        self._write_benchmark(iteration_cnt,
+                              block_size,
+                              write_with_fsync,
+                              self.cap_fs_mount_point,
+                              'capfs_write.txt',
+                              'capfs')
+        self._write_benchmark(iteration_cnt,
+                              block_size,
+                              write_with_fsync,
+                              self.efs_mount_point,
+                              'efs_write.txt',
+                              'efs')
 
     def create_benchmark(self, frequency):
-        print('=' * 60)
-        print('Mount point: {}'.format(self.cap_fs_mount_point))
-        print('Creating {} number of files at {}'.format(frequency, self.cap_fs_mount_point))
-        cap_fs_latency = self._create(frequency, self.cap_fs_mount_point, 'capfs_create.txt')
-        print('create latency for CapFS with frequency {}: {} ms'.format(frequency, cap_fs_latency))
-        print('=' * 60)
+        self._create_benchmark(frequency,
+                               self.cap_fs_mount_point,
+                               'capfs_create.txt',
+                               'capfs')
+        self._create_benchmark(frequency,
+                               self.efs_mount_point,
+                               'efs_create.txt',
+                               'efs')
+
 
     """
     Private functions
     """
+    def _read_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
+        print('=' * 60)
+        print('Mount point: {}'.format(mount_point))
+        print('Perform {} number of {} size read'.format(iteration_cnt, block_size))
+        latency = self._read(iteration_cnt, block_size, mount_point, read_file_name)
+        print('filesystem: {}. read latency for {} times of {} block size: {}ms'
+              .format(filesys_name, iteration_cnt, block_size, latency))
+        print('=' * 60)
+
+    def _write_benchmark(self, iteration_cnt, block_size, write_with_fsync, mount_point, write_file_name, filesys_name):
+        print('=' * 60)
+        print('Mount point: {}'.format(mount_point))
+        print('Perform {} number of {} size read'.format(iteration_cnt, block_size))
+        print('Perform fsync for each iteration_cnt: {}'.format(write_with_fsync))
+        latency = self._write(iteration_cnt, block_size, mount_point, write_file_name, with_fsync=write_with_fsync)
+        print('filesys: {}. write latency for CapFS {} times of {} block size: {}ms'
+              .format(filesys_name, iteration_cnt, block_size, latency))
+        print('=' * 60)
+
+    def _create_benchmark(self, frequency, mount_point, create_file_name, filesys_name):
+        print('=' * 60)
+        print('Mount point: {}'.format(self.cap_fs_mount_point))
+        print('Creating {} number of files at {}'.format(frequency, mount_point))
+        latency = self._create(frequency, mount_point, create_file_name)
+        print('filesys: {}. create latency for CapFS with frequency {}: {} ms'.format(filesys_name, frequency, latency))
+        print('=' * 60)
+
     def _create(self, frequency, mount_point, filename):
         """
         Create frequency number of files on mount_point and return avg latencies
@@ -135,11 +172,10 @@ class MicroBenchmark:
 
         return latencies / iteration_cnt
 
-    def _write(self, iteration_cnt, block_size, mount_point, with_fsync=False):
+    def _write(self, iteration_cnt, block_size, mount_point, filename, with_fsync=False):
         """
         Perform iteration_cnt number of block_size write on mount_point and return avg latencies
         """
-        filename = 'write_test.txt'
         filepath = '{}/{}'.format(mount_point, filename)
         self.file_path_created.append(filepath)
         fd = None
