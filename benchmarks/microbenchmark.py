@@ -109,7 +109,7 @@ class MicroBenchmark:
         print('Perform {} number of {} size read'.format(iteration_cnt, block_size))
         print('Perform fsync for each iteration_cnt: {}'.format(write_with_fsync))
         latency = self._write(iteration_cnt, block_size, mount_point, write_file_name, with_fsync=write_with_fsync)
-        print('filesys: {}. write latency for CapFS {} times of {} block size: {}ms'
+        print('filesys: {}. write latency {} times of {} block size: {}ms'
               .format(filesys_name, iteration_cnt, block_size, latency))
         print('=' * 60)
 
@@ -118,7 +118,7 @@ class MicroBenchmark:
         print('Mount point: {}'.format(self.cap_fs_mount_point))
         print('Creating {} number of files at {}'.format(frequency, mount_point))
         latency = self._create(frequency, mount_point, create_file_name)
-        print('filesys: {}. create latency for CapFS with frequency {}: {} ms'.format(filesys_name, frequency, latency))
+        print('filesys: {}. create latency with frequency {}: {} ms'.format(filesys_name, frequency, latency))
         print('=' * 60)
 
     def _create(self, frequency, mount_point, filename):
