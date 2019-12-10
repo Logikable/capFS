@@ -38,7 +38,7 @@
 #define BLOCK_SIZE (32 * 1024)
 #define INODE_METADATA_SIZE 16
 // Number of ptrs
-#define DIRECT_PTRS (3 / 4 * (INODE_SIZE / 4))
+#define DIRECT_PTRS ((INODE_SIZE / 4) * 3 / 4)
 #define INDIRECT_PTRS ((INODE_SIZE - INODE_METADATA_SIZE - DIRECT_PTRS * 4) / 4)
 #define DIRECT_IN_INDIRECT (INDIRECT_SIZE / 4)
 // In bytes
@@ -58,11 +58,12 @@ typedef struct capfs_file {
 } capfs_file_t;
 
 typedef struct inode {
-    unsigned int is_dir : 1;            // File data
-    unsigned int has_indirect_block: 1; // Record data
-    unsigned int recno : 4;             // Record data
-    unsigned int length : 8;            // File data
-    unsigned int padding : 2;   // Should be INODE_METADATA_SIZE - size of meta
+    unsigned is_dir : 1;            // File data
+    unsigned has_indirect_block: 1; // Record data
+    unsigned padding1 : 6;
+    unsigned int recno;             // Record data
+    unsigned long length;           // File data
+    unsigned char padding2[3];  // Should be INODE_METADATA_SIZE - size of meta
     uint32_t direct_ptrs[DIRECT_PTRS];
     uint32_t indirect_ptrs[INDIRECT_PTRS]; 
 } inode_t;

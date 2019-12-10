@@ -29,6 +29,8 @@
 
 #include "test.h"
 
+#include <string.h>
+
 #include <ep/ep.h>
 
 #include "capfs.h"
@@ -37,8 +39,18 @@
 int main(int argc, char *argv[]) {
     init();
 
-    capfs_file_t *file = capfs_file_new();
-    char buf[256];
+    const char *path = "test32";
+    capfs_file_t *file;
+    OK(capfs_file_open(path, &file));
+
+    unsigned char buf[256];
     memset(buf, 0, 256);
-    capfs_file_read(file, buf, );
+    char pbuf[128];
+    PRINT_ESTAT(capfs_file_read(file, buf, 256, 0), pbuf, 128);
+
+    for (int i = 0; i < 256; i++)
+    {
+        printf("%02X", buf[i]);
+    }
+    printf("\n");
 }
