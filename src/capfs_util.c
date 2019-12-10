@@ -36,19 +36,20 @@
 
 #include "capfs_file.h"
 
-static fh_entry_t *fh_list[64];
+static fh_entry_t fh_list[64];
 
 void
 fh_init(void) {
-    for (int i = 0; i < 64; ++i) {
-        fh_list[i] = NULL;
+    memset(fh_list, 0, sizeof(fh_entry_t) * 64);
+    for (size_t i = 0; i < 64; i++) {
+        fh_list[i].fh = i;
     }
 }
 
 static uint64_t
 fh_next(void) {
     for (int i = 0; i < 64; ++i) {
-        if (fh_list[i] == NULL) {
+        if (!fh_list[i].valid) {
             return i;
         }
     }
@@ -57,23 +58,26 @@ fh_next(void) {
 
 EP_STAT
 fh_new(fh_entry_t **fh) {
-    *fh = calloc(sizeof(fh_entry_t), 1);
-    (*fh)->fh = fh_next();
-    if ((*fh)->fh == -1) {
-        free(*fh);
+    uint64_t index = fh_next();
+    if (index == -1) {
         return EP_STAT_OUT_OF_MEMORY;
     }
-    fh_list[(*fh)->fh] = *fh;
+    *fh = fh_list + index;
+    return EP_STAT_OK;
+}
+
+EP_STAT
+fh_get(uint64_t fh, fh_entry_t **fh_ent) {
+    if (!fh_list[fh].valid) {
+        return EP_STAT_INVALID_ARG;
+    }
+    *fh_ent = fh_list + fh;
     return EP_STAT_OK;
 }
 
 void
 fh_free(uint64_t fh) {
-    if (fh_list[fh] == NULL) {
-        return;
-    }
-    free(fh_list[fh]);
-    fh_list[fh] = NULL;
+    fh_list[fh].valid = false;
 }
 
 // Returns the number of tokens. Path should be defined

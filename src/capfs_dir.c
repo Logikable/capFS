@@ -307,6 +307,7 @@ fail0:
     return estat;
 }
 
+// If last token is a directory, does not open it
 EP_STAT
 capfs_dir_opendir_path(char **path_tokens, size_t num_tokens,
                        capfs_dir_t **dir) {
@@ -320,7 +321,8 @@ capfs_dir_opendir_path(char **path_tokens, size_t num_tokens,
         capfs_dir_t *new_dir;
         estat = capfs_dir_opendir(*dir, path_tokens[i], &new_dir);
         EP_STAT_CHECK(estat, goto fail1);
-        capfs_dir_closedir(*dir);
+        estat = capfs_dir_closedir(*dir);
+        EP_STAT_CHECK(estat, goto fail0);
         *dir = new_dir;
     }
     return EP_STAT_OK;

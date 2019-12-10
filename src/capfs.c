@@ -47,6 +47,7 @@
 
 static int
 capfs_access(const char *path, int mode) {
+    // TODO
     return 0;
 }
 
@@ -63,7 +64,6 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     }
     EP_STAT estat;
 
-    // Check that the directory exists, but not the file
     char **path_tokens;
     size_t num_tokens = split_path(path, &path_tokens);
     char *file_name = path_tokens[num_tokens - 1];
@@ -142,7 +142,6 @@ capfs_mkdir(const char *path, mode_t mode) {
     }
     EP_STAT estat;
 
-    // Check that the parent directory exists, but not the child
     char **path_tokens;
     size_t num_tokens = split_path(path, &path_tokens);
     char *dir_name = path_tokens[num_tokens - 1];
@@ -177,12 +176,95 @@ fail0:
 
 static int
 capfs_open(const char *path, struct fuse_file_info *fi) {
+    // Error handling
+    if (strlen(path) == 0) {
+        return -ENOENT;
+    }
+    if (path[strlen(path) - 1] == '/') {
+        return -EISDIR;
+    }
+    EP_STAT estat;
+
+    char **path_tokens;
+    size_t num_tokens = split_path(path, &path_tokens);
+    char *file_name = path_tokens[num_tokens - 1];
+
+    // Open directory
+    capfs_dir_t *dir;
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Open file
+    capfs_file_t *file;
+    estat = capfs_dir_open_file(dir, file_name, &file);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    // Get a new file handler
+    fh_entry_t *fh;
+    EP_STAT_CHECK(fh_new(&fh), goto fail1);
+    fi->fh = fh->fh;
+
+    // Store data in file handler
+    fh->is_dir = false;
+    fh->file = file;
+    memcpy(fh->gob, file->gob, sizeof(gdp_name_t));
+
+    // Cleanup
+    capfs_dir_closedir(dir);
+    free_tokens(path_tokens);
     return 0;
+
+fail1:
+    capfs_dir_closedir(dir);
+fail0:
+    free_tokens(path_tokens);
+    return -ENOENT;
 }
 
 static int
 capfs_opendir(const char *path, struct fuse_file_info *fi) {
+    // Error handling
+    if (strlen(path) == 0) {
+        return -ENOENT;
+    }
+    EP_STAT estat;
+
+    char **path_tokens;
+    size_t num_tokens = split_path(path, &path_tokens);
+    char *file_name = path_tokens[num_tokens - 1];
+
+    // Open directory
+    capfs_dir_t *dir;
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Open child
+    capfs_dir_t *child;
+    estat = capfs_dir_opendir(dir, file_name, &child);
+    EP_STAT_CHECK(estat, goto fail1);
+    estat = capfs_dir_closedir(dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Get a new file handler
+    fh_entry_t *fh;
+    EP_STAT_CHECK(fh_new(&fh), goto fail1);
+    fi->fh = fh->fh;
+
+    // Store data in file handler
+    fh->is_dir = true;
+    fh->dir = child;
+    memcpy(fh->gob, child->file->gob, sizeof(gdp_name_t));
+
+    // Cleanup
+    capfs_dir_closedir(dir);
+    free_tokens(path_tokens);
     return 0;
+
+fail1:
+    capfs_dir_closedir(dir);
+fail0:
+    free_tokens(path_tokens);
+    return -ENOENT;
 }
 
 static int
@@ -204,6 +286,11 @@ capfs_release(const char *path, struct fuse_file_info *fi) {
 
 static int
 capfs_releasedir(const char *path, struct fuse_file_info *fi) {
+    return 0;
+}
+
+static int
+capfs_rename(const char *from, const char *to) {
     return 0;
 }
 
@@ -239,6 +326,7 @@ static struct fuse_operations capfs_operations = {
     .readdir = capfs_readdir,
     .release = capfs_release,
     .releasedir = capfs_releasedir,
+    .rename = capfs_rename,
     .rmdir = capfs_rmdir,
     .truncate = capfs_truncate,
     .unlink = capfs_unlink,

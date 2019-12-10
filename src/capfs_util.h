@@ -47,8 +47,9 @@
 
 typedef struct fh_entry {
     uint64_t fh;
-    gdp_name_t gob;
+    bool valid;
     bool is_dir;
+    gdp_name_t gob;
     union {
         capfs_dir_t *dir;
         capfs_file_t *file;
@@ -57,6 +58,7 @@ typedef struct fh_entry {
 
 void fh_init(void);
 EP_STAT fh_new(fh_entry_t **fh);
+EP_STAT fh_get(uint64_t fh, fh_entry_t **fh_ent);
 void fh_free(uint64_t fh);
 
 size_t split_path(const char *path, char ***tokens);
