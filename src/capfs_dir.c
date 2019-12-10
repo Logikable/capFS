@@ -46,6 +46,86 @@ fail0:
 }
 
 EP_STAT
+capfs_dir_mkdir(capfs_dir_t *parent, const char *path, const char *name,
+                capfs_dir_t **dir) {
+    EP_STAT estat;
+
+    // Read and parse parent table
+    char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1];
+    for (size_t i = 0; i < DIR_ENTRIES; i++) {
+        names[i][0] = '\0';
+    }
+    gdp_name_t gobs[DIR_ENTRIES];
+    capfs_dir_table_t parent_table;
+
+    estat = capfs_dir_readdir(parent, &parent_table, names, gobs);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Capacity check (in parent)
+    if (parent_table.length == DIR_ENTRIES) {
+        estat = EP_STAT_OUT_OF_MEMORY;
+        goto fail0;
+    }
+
+    // Check existence (in parent)
+    size_t index = 0;
+    for (; index < DIR_ENTRIES; index++) {
+        if (strcmp(names[index], name) == 0) {
+            break;
+        }
+    }
+    if (index != DIR_ENTRIES) {
+        estat = EP_STAT_INVALID_ARG;
+        goto fail0;
+    }
+
+    // Make capfs_dir_table_t (for child)
+    capfs_dir_table_t child_table;
+    memset(&child_table, 0, DIR_TABLE_SIZE);
+
+    // Create new file (for child)
+    capfs_file_t *file;
+    estat = capfs_file_create(path, &file);
+    EP_STAT_CHECK(estat, goto fail0);
+    *dir = capfs_dir_new(file);
+
+    // Make capfs_dir_entry_t (for parent)
+    capfs_dir_entry_t new_entry;
+    new_entry.is_dir = true;
+    new_entry.valid = true;
+    memcpy(&new_entry.gob, &(file->gob), sizeof(gdp_name_t));
+    strcpy(new_entry.name, name);
+
+    // Insert entry into available slot (for parent)
+    size_t i = 0;
+    for (; i < DIR_ENTRIES; i++) {
+        capfs_dir_entry_t entry = parent_table.entries[i];
+        if (!entry.valid) {
+            memcpy(parent_table.entries + i, &new_entry, DIR_ENTRY_SIZE);
+            break;
+        }
+    }
+    // Sanity check
+    if (i == DIR_ENTRIES) {
+        estat = EP_STAT_OUT_OF_MEMORY;
+        goto fail1;
+    }
+    parent_table.length++;
+
+    // Writeback (for parent)
+    estat = capfs_file_write(parent->file, (const char *) &parent_table,
+                             DIR_TABLE_SIZE, 0);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    return EP_STAT_OK;
+
+fail1:
+    capfs_dir_free(*dir);
+fail0:
+    return estat;
+}
+
+EP_STAT
 capfs_dir_opendir(capfs_dir_t *parent, const char *name, capfs_dir_t **dir) {
     EP_STAT estat;
 
@@ -55,7 +135,7 @@ capfs_dir_opendir(capfs_dir_t *parent, const char *name, capfs_dir_t **dir) {
         names[i][0] = '\0';
     }
     gdp_name_t gobs[DIR_ENTRIES];
-    estat = capfs_dir_readdir(parent, names, gobs);
+    estat = capfs_dir_readdir(parent, NULL, names, gobs);
     EP_STAT_CHECK(estat, goto fail0);
 
     // Verify child is there
@@ -84,7 +164,7 @@ fail0:
 
 
 EP_STAT
-capfs_dir_readdir(capfs_dir_t *dir,
+capfs_dir_readdir(capfs_dir_t *dir, capfs_dir_table_t *table,
                   char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1],
                   gdp_name_t gobs[DIR_ENTRIES]) {
     EP_STAT estat;
@@ -95,17 +175,20 @@ capfs_dir_readdir(capfs_dir_t *dir,
     EP_STAT_CHECK(estat, goto fail0);
 
     // Copy into capfs_dir_table_t
-    capfs_dir_table_t table;
-    memcpy(&table, block_buf, DIR_TABLE_SIZE);
+    if (table == NULL) {
+        capfs_dir_table_t _table;
+        table = &_table;
+    }
+    memcpy(table, block_buf, DIR_TABLE_SIZE);
 
     // Copy table entry names and gobs
     size_t index = 0;
     for (size_t i = 0; i < DIR_ENTRIES; i++) {
-        capfs_dir_entry_t entry = table.entries[i];
+        capfs_dir_entry_t entry = table->entries[i];
         if (!entry.valid) {
             continue;
         }
-        strncpy((char *) names + index, entry.name, FILE_NAME_MAX_LEN);
+        strcpy((char *) names + index, entry.name);
         if (gobs != NULL) {
             memcpy(gobs + index, entry.gob, sizeof(gdp_name_t));
         }
