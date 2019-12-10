@@ -11,3 +11,9 @@ Mount:
 Clean: `make clean`
 
 Test: `make test TEST=[test_name].c`
+
+## TODO
+
+Test directory functions
+Test file close
+Detach file name from gob (to make renaming easier)

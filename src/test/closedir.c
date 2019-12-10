@@ -27,30 +27,21 @@
 **  ----- END LICENSE BLOCK -----
 */
 
-#include <assert.h>
-#include <sys/time.h>
+#include "test.h"
 
-#include <ep/ep.h>
+#include "capfs.h"
+#include "capfs_dir.h"
 
-#define OK(ep) assert(EP_STAT_ISOK(ep))
-#define NOTOK(ep) assert(!EP_STAT_ISOK(ep))
-#define PRINT_ESTAT(ep, buf, sz) printf("%s\n", ep_stat_tostr(ep, buf, sz));
+int main(int argc, char *argv[]) {
+    init();
 
-static long start;
+    capfs_dir_t *root;
+    OK(capfs_dir_open_root(&root));
 
-void
-bench_start(void) {
-    struct timeval timecheck;
+    capfs_dir_t *dir = NULL;
+    NOTOK(capfs_dir_closedir(dir));
+    OK(capfs_dir_opendir(root, "test", &dir));
+    OK(capfs_dir_closedir(dir));
 
-    gettimeofday(&timecheck, NULL);
-    start = (long) (timecheck.tv_sec * 1000 + timecheck.tv_usec / 1000);
-}
-
-void
-bench_end(void) {
-    struct timeval timecheck;
-
-    gettimeofday(&timecheck, NULL);
-    long stop = (long) (timecheck.tv_sec * 1000 + timecheck.tv_usec / 1000);
-    printf("Time taken: %ldms\n", stop - start);
+    printf("Success!\n");
 }

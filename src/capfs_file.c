@@ -28,9 +28,10 @@
 */
 
 #include "capfs_file.h"
-#include "capfs_util.h"
 
 #include <string.h>
+
+#include "capfs_util.h"
 
 // offset -> inode ptrs index
 // Returns an index as if indirect ptrs began indexing at DIRECT_PTRS
