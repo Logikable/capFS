@@ -28,8 +28,28 @@
 */
 
 #include <assert.h>
+#include <sys/time.h>
 
 #include <ep/ep.h>
 
 #define OK(ep) assert(EP_STAT_ISOK(ep))
 #define PRINT_ESTAT(ep, buf, sz) printf("%s\n", ep_stat_tostr(ep, buf, sz));
+
+static long start;
+
+void
+bench_start(void) {
+    struct timeval timecheck;
+
+    gettimeofday(&timecheck, NULL);
+    start = (long) (timecheck.tv_sec * 1000 + timecheck.tv_usec / 1000);
+}
+
+void
+bench_end(void) {
+    struct timeval timecheck;
+
+    gettimeofday(&timecheck, NULL);
+    long stop = (long) (timecheck.tv_sec * 1000 + timecheck.tv_usec / 1000);
+    printf("Time taken: %ldms\n", stop - start);
+}

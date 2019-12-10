@@ -37,13 +37,17 @@
 int main(int argc, char *argv[]) {
     init();
 
-    const char *path = "test32";
+    const char *path = "test47";
     capfs_file_t *file;
     OK(capfs_file_open(path, &file));
+
+    bench_start();
 
     char buf[256];
     memset(buf, 0xaa, 256);
     OK(capfs_file_write(file, buf, 256, 0));
+
+    bench_end();
 
     printf("Success!\n");
 }

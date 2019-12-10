@@ -39,18 +39,23 @@
 int main(int argc, char *argv[]) {
     init();
 
-    const char *path = "test32";
+    // Open the file
+    const char *path = "test47";
     capfs_file_t *file;
     OK(capfs_file_open(path, &file));
 
-    unsigned char buf[256];
+    // Read the file
+    char buf[256];
     memset(buf, 0, 256);
-    char pbuf[128];
-    PRINT_ESTAT(capfs_file_read(file, buf, 256, 0), pbuf, 128);
 
+    bench_start();
+    OK(capfs_file_read(file, buf, 256, 0));
+    bench_end();
+
+    // Print the results
     for (int i = 0; i < 256; i++)
     {
-        printf("%02X", buf[i]);
+        printf("%02X", ((unsigned char *) buf)[i]);
     }
     printf("\n");
 }
