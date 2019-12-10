@@ -33,8 +33,15 @@ write
 ```
 python main.py --help # will print useful options
 python main.py -m micro -c [capFs-mount-directory] -e [efs-mount-directory] [-s if this flag is set, it will clean files created after performing benchmark.] [-i number of microbenchmark read/write performed to average out] [-f number of files created for creation micro benchmark]
+# If you are using our EC2, run this command.
+sudo python3 main.py -m micro -c /home/ubuntu/cap-fs-mount-point -e /home/ubuntu/efs-mount-point -s
 ```
 This command line tool will perform micro benchmark of read/create/write on given mounted directories.
+__Add sudo when you run within EC2 instance__
+
+## Useful command line tool
+`findmnt -T .`
+Show what filesystem is mounted on the current directory
 
 ## MacroBenchmarking
 ```
