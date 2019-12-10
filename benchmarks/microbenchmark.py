@@ -90,7 +90,6 @@ class MicroBenchmark:
                                'efs_create.txt',
                                'efs')
 
-
     """
     Private functions
     """
