@@ -68,35 +68,27 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     size_t num_tokens = split_path(path, &path_tokens);
     char *file_name = path_tokens[num_tokens - 1];
 
+    // Open directory
     capfs_dir_t *dir;
-    estat = capfs_dir_open_root(&dir);
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &dir);
     EP_STAT_CHECK(estat, goto fail0);
 
-    // Directory exists
-    for (size_t i = 0; i < num_tokens - 1; i++) {
-        capfs_dir_t *new_dir;
-        estat = capfs_dir_opendir(dir, path_tokens[i], &new_dir);
-        EP_STAT_CHECK(estat, goto fail1);
-        capfs_dir_closedir(dir);
-        dir = new_dir;
-    }
-
     // File does not exist
-    capfs_file_t *file;
-    estat = capfs_dir_open_file(dir, file_name, &file);
-    if (EP_STAT_ISOK(estat)) {
-        capfs_file_close(file);
+    if (capfs_dir_has_child(dir, file_name, false)) {
         goto fail1;
     }
 
     // Get a new file handler
     fh_entry_t *fh;
-    EP_STAT_CHECK(fh_new(path, &fh), goto fail2);
+    EP_STAT_CHECK(fh_new(&fh), goto fail2);
     fi->fh = fh->fh;
 
     // Create the file in the directory
+    capfs_file_t *file;
     EP_STAT_CHECK(capfs_dir_make_file(dir, file_name, &file), goto fail2);
-    // Store GOB
+    // Store data in file handler
+    fh->is_dir = false;
+    fh->file = file;
     memcpy(fh->gob, file->gob, sizeof(gdp_name_t));
 
     // Cleanup
@@ -142,7 +134,45 @@ capfs_getattr(const char *path, struct stat *st) {
 
 static int
 capfs_mkdir(const char *path, mode_t mode) {
+    (void) mode;
+
+    // Error handling
+    if (strlen(path) == 0) {
+        return -ENOENT;
+    }
+    EP_STAT estat;
+
+    // Check that the parent directory exists, but not the child
+    char **path_tokens;
+    size_t num_tokens = split_path(path, &path_tokens);
+    char *dir_name = path_tokens[num_tokens - 1];
+
+    // Open directory
+    capfs_dir_t *dir;
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Child does not exist
+    if (capfs_dir_has_child(dir, dir_name, true)) {
+        goto fail1;
+    }
+
+    // Create the child in the directory
+    capfs_dir_t *child;
+    estat = capfs_dir_mkdir(dir, dir_name, &child);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    // Cleanup
+    capfs_dir_closedir(child);
+    capfs_dir_closedir(dir);
+    free_tokens(path_tokens);
     return 0;
+
+fail1:
+    capfs_dir_closedir(dir);
+fail0:
+    free_tokens(path_tokens);
+    return -ENOENT;
 }
 
 static int
@@ -152,7 +182,6 @@ capfs_open(const char *path, struct fuse_file_info *fi) {
 
 static int
 capfs_opendir(const char *path, struct fuse_file_info *fi) {
-    printf("woah!");
     return 0;
 }
 

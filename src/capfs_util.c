@@ -56,14 +56,13 @@ fh_next(void) {
 }
 
 EP_STAT
-fh_new(const char *path, fh_entry_t **fh) {
+fh_new(fh_entry_t **fh) {
     *fh = calloc(sizeof(fh_entry_t), 1);
     (*fh)->fh = fh_next();
     if ((*fh)->fh == -1) {
         free(*fh);
         return EP_STAT_OUT_OF_MEMORY;
     }
-    strcpy((*fh)->path, path);
     fh_list[(*fh)->fh] = *fh;
     return EP_STAT_OK;
 }

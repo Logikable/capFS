@@ -42,14 +42,21 @@
 #include <ep/ep.h>
 #include <gdp/gdp.h>
 
+#include "capfs_dir.h"
+#include "capfs_file.h"
+
 typedef struct fh_entry {
     uint64_t fh;
-    char path[256];
     gdp_name_t gob;
+    bool is_dir;
+    union {
+        capfs_dir_t *dir;
+        capfs_file_t *file;
+    };
 } fh_entry_t;
 
 void fh_init(void);
-EP_STAT fh_new(const char *path, fh_entry_t **fh);
+EP_STAT fh_new(fh_entry_t **fh);
 void fh_free(uint64_t fh);
 
 size_t split_path(const char *path, char ***tokens);

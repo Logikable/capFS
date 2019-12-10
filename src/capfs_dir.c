@@ -307,6 +307,50 @@ fail0:
     return estat;
 }
 
+EP_STAT
+capfs_dir_opendir_path(char **path_tokens, size_t num_tokens,
+                       capfs_dir_t **dir) {
+    EP_STAT estat;
+
+    estat = capfs_dir_open_root(dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Directory exists
+    for (size_t i = 0; i < num_tokens - 1; i++) {
+        capfs_dir_t *new_dir;
+        estat = capfs_dir_opendir(*dir, path_tokens[i], &new_dir);
+        EP_STAT_CHECK(estat, goto fail1);
+        capfs_dir_closedir(*dir);
+        *dir = new_dir;
+    }
+    return EP_STAT_OK;
+
+fail1:
+    capfs_dir_closedir(*dir);
+fail0:
+    return estat;
+}
+
+bool
+capfs_dir_has_child(capfs_dir_t *parent, const char *name, bool is_dir) {
+    EP_STAT estat;
+
+    capfs_dir_table_t table;
+    char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1];
+    estat = capfs_dir_readdir(parent, &table, names, NULL);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    for (size_t i = 0; i < table.length; i++) {
+        if (strcmp(names[i], name) == 0) {
+            return is_dir == table.entries[i].is_dir;
+        }
+    }
+
+fail0:
+    return false;
+}
+
+
 // Provide NULL to table or gobs if not needed
 EP_STAT
 capfs_dir_readdir(capfs_dir_t *dir, capfs_dir_table_t *table,

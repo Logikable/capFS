@@ -76,6 +76,9 @@ EP_STAT capfs_dir_open_file(capfs_dir_t *parent, const char *name,
                             capfs_file_t **file);
 EP_STAT capfs_dir_opendir(capfs_dir_t *parent, const char *name,
                           capfs_dir_t **dir);
+EP_STAT capfs_dir_opendir_path(char **path_tokens, size_t num_tokens,
+                               capfs_dir_t **dir);
+bool capfs_dir_has_child(capfs_dir_t *parent, const char *name, bool is_dir);
 EP_STAT capfs_dir_readdir(capfs_dir_t *dir, capfs_dir_table_t *table,
                           char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1],
                           gdp_name_t gobs[DIR_ENTRIES]);
