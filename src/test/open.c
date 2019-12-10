@@ -35,10 +35,10 @@
 int main(int argc, char *argv[]) {
     init();
 
-    // Please increment the test file number before each run!
-    const char *path = "test32";
+    // Make sure this file already exists!
+    const char *path = "test1";
     capfs_file_t *file;
-    OK(capfs_file_create(path, &file));
+    OK(capfs_file_open(path, &file));
 
     printf("Success!\n");
 }

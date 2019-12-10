@@ -29,7 +29,7 @@
 
 #include "test.h"
 
-#include <ep/ep.h>
+#include <string.h>
 
 #include "capfs.h"
 #include "capfs_file.h"
@@ -37,8 +37,13 @@
 int main(int argc, char *argv[]) {
     init();
 
-    capfs_file_t *file = capfs_file_new();
+    const char *path = "test32";
+    capfs_file_t *file;
+    OK(capfs_file_open(path, &file));
+
     char buf[256];
     memset(buf, 0xaa, 256);
-    assert(EP_STAT_ISOK(capfs_file_write(file, buf, 256, 0)));
+    OK(capfs_file_write(file, buf, 256, 0));
+
+    printf("Success!\n");
 }
