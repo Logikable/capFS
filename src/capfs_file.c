@@ -203,6 +203,9 @@ fail0:
 
 EP_STAT
 capfs_file_read(capfs_file_t *file, char *buf, size_t size, off_t offset) {
+    if (file == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
     EP_STAT estat;
     gdp_gin_t *ginp = file->ginp;
 
@@ -351,6 +354,9 @@ fail0:
 EP_STAT
 capfs_file_write(capfs_file_t *file, const char *buf, size_t size,
                  off_t offset) {
+    if (file == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
     EP_STAT estat;
     gdp_gin_t *ginp = file->ginp;
 
@@ -527,6 +533,22 @@ fail0:
     return estat;
 }
 
+// Does not free for you
+EP_STAT
+capfs_file_close(capfs_file_t *file) {
+    if (file == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
+    EP_STAT estat;
+
+    estat = gdp_gin_close(file->ginp);
+    EP_STAT_CHECK(estat, goto fail0);
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
 capfs_file_t *
 capfs_file_new(const gdp_name_t gob) {
     capfs_file_t *file = calloc(sizeof(capfs_file_t), 1);
@@ -536,5 +558,8 @@ capfs_file_new(const gdp_name_t gob) {
 
 void
 capfs_file_free(capfs_file_t *file) {
+    if (file == NULL) {
+        return;
+    }
     free(file);
 }

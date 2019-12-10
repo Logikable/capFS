@@ -159,6 +159,11 @@ capfs_truncate(const char *path, off_t file_size) {
 }
 
 static int
+capfs_unlink(const char *path) {
+    return 0;
+}
+
+static int
 capfs_write(const char *path, const char *buf, size_t size, off_t offset,
             struct fuse_file_info *fi) {
     return 0;
@@ -177,6 +182,7 @@ static struct fuse_operations capfs_operations = {
     .releasedir = capfs_releasedir,
     .rmdir = capfs_rmdir,
     .truncate = capfs_truncate,
+    .unlink = capfs_unlink,
     .write = capfs_write,
 };
 

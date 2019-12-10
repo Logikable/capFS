@@ -31,6 +31,42 @@
 
 #include <string.h>
 
+// Should only be called manually! See test/make_root.c
+EP_STAT
+capfs_dir_make_root(void) {
+    EP_STAT estat;
+
+    // Check that it doesn't exist
+    capfs_dir_t *dir;
+    estat = capfs_dir_get_root(&dir);
+    if (EP_STAT_ISOK(estat)) {
+        estat = EP_STAT_ASSERT_ABORT;
+        goto fail0;
+    }
+
+    // Create new file
+    capfs_file_t *file;
+    estat = capfs_file_create("/", &file);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Write empty directory (for child)
+    capfs_dir_table_t child_table;
+    memset(&child_table, 0, DIR_TABLE_SIZE);
+    estat = capfs_file_write(file, (const char *) &child_table, DIR_TABLE_SIZE, 0);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    // Close & Cleanup
+    estat = capfs_file_close(file);
+    EP_STAT_CHECK(estat, goto fail1);
+    capfs_file_free(file);
+    return EP_STAT_OK;
+
+fail1:
+    capfs_file_free(file);
+fail0:
+    return estat;
+}
+
 EP_STAT
 capfs_dir_get_root(capfs_dir_t **dir) {
     EP_STAT estat;    
@@ -48,6 +84,9 @@ fail0:
 EP_STAT
 capfs_dir_mkdir(capfs_dir_t *parent, const char *path, const char *name,
                 capfs_dir_t **dir) {
+    if (parent == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
     EP_STAT estat;
 
     // Read and parse parent table
@@ -79,15 +118,17 @@ capfs_dir_mkdir(capfs_dir_t *parent, const char *path, const char *name,
         goto fail0;
     }
 
-    // Make capfs_dir_table_t (for child)
-    capfs_dir_table_t child_table;
-    memset(&child_table, 0, DIR_TABLE_SIZE);
-
     // Create new file (for child)
     capfs_file_t *file;
     estat = capfs_file_create(path, &file);
     EP_STAT_CHECK(estat, goto fail0);
     *dir = capfs_dir_new(file);
+
+    // Write empty directory (for child)
+    capfs_dir_table_t child_table;
+    memset(&child_table, 0, DIR_TABLE_SIZE);
+    estat = capfs_file_write(file, (const char *) &child_table, DIR_TABLE_SIZE, 0);
+    EP_STAT_CHECK(estat, goto fail1);
 
     // Make capfs_dir_entry_t (for parent)
     capfs_dir_entry_t new_entry;
@@ -127,6 +168,9 @@ fail0:
 
 EP_STAT
 capfs_dir_opendir(capfs_dir_t *parent, const char *name, capfs_dir_t **dir) {
+    if (parent == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
     EP_STAT estat;
 
     // Read in names/gobs
@@ -162,11 +206,14 @@ fail0:
     return estat;
 }
 
-
+// Provide NULL to table or gobs if not needed
 EP_STAT
 capfs_dir_readdir(capfs_dir_t *dir, capfs_dir_table_t *table,
                   char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1],
                   gdp_name_t gobs[DIR_ENTRIES]) {
+    if (dir == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
     EP_STAT estat;
 
     // Read file contents
@@ -182,18 +229,85 @@ capfs_dir_readdir(capfs_dir_t *dir, capfs_dir_table_t *table,
     memcpy(table, block_buf, DIR_TABLE_SIZE);
 
     // Copy table entry names and gobs
-    size_t index = 0;
     for (size_t i = 0; i < DIR_ENTRIES; i++) {
         capfs_dir_entry_t entry = table->entries[i];
         if (!entry.valid) {
-            continue;
+            break;
         }
-        strcpy((char *) names + index, entry.name);
+        strcpy(names[i], entry.name);
         if (gobs != NULL) {
-            memcpy(gobs + index, entry.gob, sizeof(gdp_name_t));
+            memcpy(gobs[i], entry.gob, sizeof(gdp_name_t));
         }
-        index++;
     }
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+EP_STAT
+capfs_dir_rmdir(capfs_dir_t *parent, const char *name) {
+    if (parent == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
+    EP_STAT estat;
+
+    // Read parent contents
+    char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1];
+    for (size_t i = 0; i < DIR_ENTRIES; i++) {
+        names[i][0] = '\0';
+    }
+    capfs_dir_table_t table;
+
+    estat = capfs_dir_readdir(parent, &table, names, NULL);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Find name
+    size_t index = 0;
+    for (; index < DIR_ENTRIES; index++) {
+        if (strcmp(names[index], name) == 0) {
+            break;
+        }
+    }
+    if (index == DIR_ENTRIES) {
+        estat = EP_STAT_NOT_FOUND;
+        goto fail0;
+    }
+    // Check that it's a directory
+    if (!table.entries[index].is_dir) {
+        estat = EP_STAT_INVALID_ARG;
+        goto fail0;
+    }
+
+    // Remove by shifting everything else up
+    for (index++; index < table.length; index++) {
+        table.entries[index - 1] = table.entries[index];
+    }
+    // Zero out last one
+    memset(table.entries + index - 1, 0, DIR_ENTRY_SIZE);
+    table.length--;
+
+    // Writeback
+    estat = capfs_file_write(parent->file, (const char *) &table,
+                             DIR_TABLE_SIZE, 0);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+// Does not free for you
+EP_STAT
+capfs_dir_closedir(capfs_dir_t *dir) {
+    if (dir == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
+    EP_STAT estat;
+
+    estat = capfs_file_close(dir->file);
+    EP_STAT_CHECK(estat, goto fail0);
     return EP_STAT_OK;
 
 fail0:
@@ -209,6 +323,9 @@ capfs_dir_new(capfs_file_t *file) {
 
 void
 capfs_dir_free(capfs_dir_t *dir) {
+    if (dir == NULL) {
+        return;
+    }
     capfs_file_free(dir->file);
     free(dir);
 }

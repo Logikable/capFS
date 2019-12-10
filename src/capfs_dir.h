@@ -66,6 +66,7 @@ typedef struct capfs_dir_table {
     capfs_dir_entry_t entries[DIR_ENTRIES];
 } capfs_dir_table_t;
 
+EP_STAT capfs_dir_make_root(void);
 EP_STAT capfs_dir_get_root(capfs_dir_t **dir);
 EP_STAT capfs_dir_mkdir(capfs_dir_t *parent, const char *path, const char *name,
                         capfs_dir_t **dir);
@@ -74,6 +75,8 @@ EP_STAT capfs_dir_opendir(capfs_dir_t *parent, const char *name,
 EP_STAT capfs_dir_readdir(capfs_dir_t *dir, capfs_dir_table_t *table,
                           char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1],
                           gdp_name_t gobs[DIR_ENTRIES]);
+EP_STAT capfs_dir_rmdir(capfs_dir_t *parent, const char *name);
+EP_STAT capfs_dir_closedir(capfs_dir_t *dir);
 capfs_dir_t *capfs_dir_new(capfs_file_t *file);
 void capfs_dir_free(capfs_dir_t *dir);
 
