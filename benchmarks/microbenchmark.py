@@ -11,6 +11,8 @@ class MicroBenchmark:
         if efs_mount_point[-1] == '/':
             raise Exception('do not include trailing / to the path for {}'.format(efs_mount_point))
 
+        # created files' path while performing benchmarking
+        self.file_path_created = []
         self.cap_fs_mount_point = cap_fs_mount_point
         self.efs_mount_point = efs_mount_point
 
@@ -21,7 +23,8 @@ class MicroBenchmark:
             write=True,
             write_with_fsync=False,
             create=True,
-            create_frequency=3000):
+            create_frequency=3000,
+            clean_files=True):
         """
         Run micro-benchmarking
         :param data_block_size(Int): data block size to perform read/write for each iteration_cnt
@@ -35,17 +38,20 @@ class MicroBenchmark:
         """
         if read:
             self.read_benchmark(iteration_cnt, data_block_size)
-            self._clean()
+            if clean_files:
+                self._clean()
             print('\n\n')
 
         if write:
             self.write_benchmark(iteration_cnt, data_block_size, write_with_fsync)
-            self._clean()
+            if clean_files:
+                self._clean()
             print('\n\n')
 
         if create:
             self.create_benchmark(create_frequency)
-            self._clean()
+            if clean_files:
+                self._clean()
             print('\n\n')
 
     def read_benchmark(self, iteration_cnt, block_size):
@@ -88,9 +94,10 @@ class MicroBenchmark:
         latencies = 0
 
         for i in range(frequency):
-            latencies += measure_latency(
-                self._creat,
-                '{mount_point}/{filename}_{number}.txt'.format(mount_point=mount_point, filename=filename, number=i))
+            file_path = '{mount_point}/{filename}_{number}.txt'\
+                .format(mount_point=mount_point, filename=filename, number=i)
+            self.file_path_created.append(file_path)
+            latencies += measure_latency(self._creat, file_path)
         return latencies / frequency
 
     def _read(self, iteration_cnt, block_size, mount_point, filename):
@@ -98,6 +105,7 @@ class MicroBenchmark:
         Perform iteration_cnt number of block_size read on mount_point and return avg latencies
         """
         filepath = '{}/{}'.format(mount_point, filename)
+        self.file_path_created.append(filepath)
         file_size = iteration_cnt * block_size
         fd = None
         latencies = 0
@@ -133,6 +141,7 @@ class MicroBenchmark:
         """
         filename = 'write_test.txt'
         filepath = '{}/{}'.format(mount_point, filename)
+        self.file_path_created.append(filepath)
         fd = None
         latencies = 0
         self._creat(filepath)
@@ -158,10 +167,9 @@ class MicroBenchmark:
         return latencies / iteration_cnt
 
     def _clean(self):
-        capfs_files = glob.glob('{capfs_dir}/*'.format(capfs_dir=self.cap_fs_mount_point))
-        efs_files = glob.glob('{efs_dir}/*'.format(efs_dir=self.efs_mount_point))
-        for f in capfs_files + efs_files:
-            os.remove(f)
+        for filepath in self.file_path_created:
+            os.remove(filepath)
+        self.file_path_created = []
 
     def _creat(self, filename):
         # Create a file with maximum access control
