@@ -30,4 +30,6 @@
 import sys
 
 f = open("/mnt/capfs/test", "w+")
+f.write("test abc\n")
+print(f.read())
 f.close()

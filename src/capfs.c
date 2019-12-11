@@ -622,6 +622,8 @@ init(void) {
     if (!EP_STAT_ISOK(estat)) {
         exit(EX_UNAVAILABLE);
     }
+    // Just in case this is a fresh file system
+    capfs_dir_make_root();
 }
 
 int
