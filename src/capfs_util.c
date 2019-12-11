@@ -36,19 +36,20 @@
 
 #include "capfs_file.h"
 
-static fh_entry_t *fh_list[64];
+static fh_entry_t fh_list[64];
 
 void
 fh_init(void) {
-    for (int i = 0; i < 64; ++i) {
-        fh_list[i] = NULL;
+    memset(fh_list, 0, sizeof(fh_entry_t) * 64);
+    for (size_t i = 0; i < 64; i++) {
+        fh_list[i].fh = i;
     }
 }
 
 static uint64_t
 fh_next(void) {
-    for (int i = 0; i < 64; ++i) {
-        if (fh_list[i] == NULL) {
+    for (size_t i = 0; i < 64; ++i) {
+        if (!fh_list[i].valid) {
             return i;
         }
     }
@@ -56,25 +57,49 @@ fh_next(void) {
 }
 
 EP_STAT
-fh_new(const char *path, fh_entry_t **fh) {
-    *fh = calloc(sizeof(fh_entry_t), 1);
-    (*fh)->fh = fh_next();
-    if ((*fh)->fh == -1) {
-        free(*fh);
+fh_new(fh_entry_t **fh) {
+    uint64_t index = fh_next();
+    if (index == -1) {
         return EP_STAT_OUT_OF_MEMORY;
     }
-    strcpy((*fh)->path, path);
-    fh_list[(*fh)->fh] = *fh;
+    fh_list[index].valid = true;
+    fh_list[index].ref = 0;
+    *fh = fh_list + index;
     return EP_STAT_OK;
+}
+
+EP_STAT
+fh_get(uint64_t fh, fh_entry_t **fh_ent) {
+    if (!fh_list[fh].valid) {
+        return EP_STAT_INVALID_ARG;
+    }
+    *fh_ent = fh_list + fh;
+    return EP_STAT_OK;
+}
+
+EP_STAT
+fh_get_by_gob(gdp_name_t gob, fh_entry_t **fh_ent) {
+    for (size_t i = 0; i < 64; ++i) {
+        if (fh_list[i].valid) {
+            if (fh_list[i].is_dir) {
+                if (GDP_NAME_SAME(fh_list[i].dir->file->gob, gob)) {
+                    *fh_ent = fh_list + i;
+                    return EP_STAT_OK;
+                }
+            } else {
+                if (GDP_NAME_SAME(fh_list[i].file->gob, gob)) {
+                    *fh_ent = fh_list + i;
+                    return EP_STAT_OK;
+                }
+            }
+        }
+    }
+    return EP_STAT_NOT_FOUND;
 }
 
 void
 fh_free(uint64_t fh) {
-    if (fh_list[fh] == NULL) {
-        return;
-    }
-    free(fh_list[fh]);
-    fh_list[fh] = NULL;
+    fh_list[fh].valid = false;
 }
 
 // Returns the number of tokens. Path should be defined
@@ -92,11 +117,11 @@ split_path(const char *path, char ***tokens) {
     size_t index = 1;
     size_t tokens_index = 0;
     while ((c = path[index]) != '\0' && tokens_index < 32) {
-        if (c == '/') {
-            *tokens[tokens_index] = calloc(sizeof(char), 128);
+        if (c == '/' || path[index + 1] == '\0') {
+            *tokens[tokens_index] = calloc(sizeof(char), FILE_NAME_MAX_LEN + 1);
             size_t length = index - prev_index - 1;
             strncpy(*tokens[tokens_index], path + prev_index,
-                    length < 128 ? length : 127);
+                   length < FILE_NAME_MAX_LEN + 1 ? length : FILE_NAME_MAX_LEN);
             tokens_index++;
             prev_index = index;
         }

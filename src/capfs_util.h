@@ -34,22 +34,28 @@
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
-#define max(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
 
 #include <ep/ep.h>
 #include <gdp/gdp.h>
 
+#include "capfs_dir.h"
+#include "capfs_file.h"
+
 typedef struct fh_entry {
     uint64_t fh;
-    char path[256];
-    gdp_name_t gob;
+    bool valid;
+    bool is_dir;
+    uint16_t ref;
+    union {
+        capfs_dir_t *dir;
+        capfs_file_t *file;
+    };
 } fh_entry_t;
 
 void fh_init(void);
-EP_STAT fh_new(const char *path, fh_entry_t **fh);
+EP_STAT fh_new(fh_entry_t **fh);
+EP_STAT fh_get(uint64_t fh, fh_entry_t **fh_ent);
+EP_STAT fh_get_by_gob(gdp_name_t gob, fh_entry_t **fh_ent);
 void fh_free(uint64_t fh);
 
 size_t split_path(const char *path, char ***tokens);

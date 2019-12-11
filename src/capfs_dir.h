@@ -67,14 +67,24 @@ typedef struct capfs_dir_table {
 } capfs_dir_table_t;
 
 EP_STAT capfs_dir_make_root(void);
-EP_STAT capfs_dir_get_root(capfs_dir_t **dir);
-EP_STAT capfs_dir_mkdir(capfs_dir_t *parent, const char *path, const char *name,
+EP_STAT capfs_dir_open_root(capfs_dir_t **dir);
+EP_STAT capfs_dir_make_file(capfs_dir_t *parent, const char *name,
+                            capfs_file_t **file);
+EP_STAT capfs_dir_mkdir(capfs_dir_t *parent, const char *name,
                         capfs_dir_t **dir);
+EP_STAT capfs_dir_open_file(capfs_dir_t *parent, const char *name,
+                            capfs_file_t **file);
 EP_STAT capfs_dir_opendir(capfs_dir_t *parent, const char *name,
                           capfs_dir_t **dir);
+EP_STAT capfs_dir_opendir_path(char **path_tokens, size_t num_tokens,
+                               capfs_dir_t **dir);
+bool capfs_dir_has_child(capfs_dir_t *parent, const char *name, bool is_dir);
 EP_STAT capfs_dir_readdir(capfs_dir_t *dir, capfs_dir_table_t *table,
                           char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1],
                           gdp_name_t gobs[DIR_ENTRIES]);
+EP_STAT capfs_dir_rename(capfs_dir_t *from, capfs_dir_t *to,
+                         const char *from_name, const char *to_name);
+EP_STAT capfs_dir_remove_file(capfs_dir_t *parent, const char *name);
 EP_STAT capfs_dir_rmdir(capfs_dir_t *parent, const char *name);
 EP_STAT capfs_dir_closedir(capfs_dir_t *dir);
 capfs_dir_t *capfs_dir_new(capfs_file_t *file);

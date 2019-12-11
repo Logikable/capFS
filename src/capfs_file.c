@@ -28,9 +28,10 @@
 */
 
 #include "capfs_file.h"
-#include "capfs_util.h"
 
 #include <string.h>
+
+#include "capfs_util.h"
 
 // offset -> inode ptrs index
 // Returns an index as if indirect ptrs began indexing at DIRECT_PTRS
@@ -415,7 +416,66 @@ fail0:
 }
 
 EP_STAT
-capfs_file_create(const char *path, capfs_file_t **file) {
+capfs_file_get_length(capfs_file_t *file, size_t *length) {
+    if (file == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
+    EP_STAT estat;
+    gdp_gin_t *ginp = file->ginp;
+
+    // Read inode
+    inode_t inode;
+    gdp_hash_t *prevhash;
+    estat = capfs_file_read_inode(ginp, &inode, &prevhash);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    *length = inode.length;
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+EP_STAT
+capfs_file_truncate(capfs_file_t *file, off_t file_size) {
+    if (file == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
+    EP_STAT estat;
+    gdp_gin_t *ginp = file->ginp;
+
+    // Read inode
+    inode_t inode;
+    gdp_hash_t *prevhash;
+    estat = capfs_file_read_inode(ginp, &inode, &prevhash);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Error checking
+    if (file_size > inode.length) {
+        estat = EP_STAT_INVALID_ARG;
+        goto fail0;
+    }
+
+    // Update length + metadata
+    inode.length = file_size;
+    inode.recno++;
+    inode.has_indirect_block = false;
+
+    // Write in an empty block
+    char data_block[BLOCK_SIZE];
+    memset(data_block, 0, BLOCK_SIZE);
+    estat = capfs_file_write_record(ginp, prevhash, &prevhash, &inode, NULL,
+                                    data_block);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+static EP_STAT
+_capfs_file_create(const char *name, capfs_file_t **file) {
     EP_STAT estat;
 
     // Create GCI - prep for creating DataCapsule
@@ -428,10 +488,8 @@ capfs_file_create(const char *path, capfs_file_t **file) {
     EP_STAT_CHECK(estat, goto fail0);
 
     // Create DataCapsule
-    char human_name[256];
-    get_human_name(path, human_name);
     gdp_gin_t *ginp;
-    estat = gdp_gin_create(gci, human_name, &ginp);
+    estat = gdp_gin_create(gci, name, &ginp);
     EP_STAT_CHECK(estat, goto fail0);
 
     gdp_name_t gob;
@@ -490,6 +548,33 @@ fail1:
     gdp_gin_delete(ginp);
 fail0:
     gdp_create_info_free(&gci);
+    return estat;
+}
+
+EP_STAT
+capfs_file_create(const char *path, capfs_file_t **file) {
+    EP_STAT estat;
+
+    char human_name[256];
+    get_human_name(path, human_name);
+    estat = _capfs_file_create(human_name, file);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+EP_STAT
+capfs_file_create_gob(capfs_file_t **file) {
+    EP_STAT estat;
+
+    estat = _capfs_file_create(NULL, file);
+    EP_STAT_CHECK(estat, goto fail0);
+    return EP_STAT_OK;
+
+fail0:
     return estat;
 }
 
