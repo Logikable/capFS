@@ -49,5 +49,5 @@ def get_throughput(latency, block_size, unit=Unit.KB):
     """
     latency_in_s = latency / 1000
     throughput = (1 / latency_in_s) * block_size
-    return '{} {}'.format(round(throughput / unit.value), translation_unit(unit))
+    return '{} {}'.format(round(throughput / unit.value, ndigits=3), translation_unit(unit))
 
