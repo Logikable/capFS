@@ -10,5 +10,5 @@ for test_file in test_files:
         print('=' * 60)
         print(test_file)
         print('\n')
-        subprocess.run(['make', 'test', 'TEST={test_file_name}'.format(test_file_name=test_file)])
+        subprocess.run(['make', 'clean', 'test', 'TEST={test_file_name}'.format(test_file_name=test_file)])
         print('=' * 60 + '\n\n')
