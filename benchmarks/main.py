@@ -24,6 +24,9 @@ parser.add_option('-i', '--iteration-cnt',
 parser.add_option('-f', '--create-frequency',
                   action='store', type='int', dest='frequency', default=3000,
                   help='Total number of iteration count to be performed for create micro benchmarking.')
+parser.add_option('-u', '--untar-iteration-cnt',
+                  action='store', type='int', dest='untar_iteration_cnt', default=3,
+                  help='Total number of iteration count to be performed for untar micro benchmarking.')
 (options, args) = parser.parse_args()
 
 
@@ -35,6 +38,7 @@ if __name__ == '__main__':
     efs_dir = options.efs_dir
     clean_files = options.clean_files
     iteration_cnt = options.iteration_cnt
+    untar_iteration_cnt = options.untar_iteration_cnt
     frequency = options.frequency
 
     if mode == 'micro':
@@ -42,7 +46,7 @@ if __name__ == '__main__':
         benchmark.run(create_frequency=frequency, iteration_cnt=iteration_cnt, clean_files=clean_files)
     elif mode == 'macro':
         benchmark = MacroBenchmark(capfs_dir, efs_dir)
-        benchmark.run(iteration_cnt=iteration_cnt, clean_files=clean_files)
+        benchmark.run(iteration_cnt=iteration_cnt, clean_files=clean_files, untar_iteration_cnt=untar_iteration_cnt)
     else:
         print('mode should be either micro or macro')
 

@@ -27,6 +27,7 @@ class MacroBenchmark:
     def run(self,
             data_block_size=1024*32,
             iteration_cnt=100,
+            untar_iteration_cnt=3,
             sequential_read=True,
             sequential_write=True,
             random_read=True,
@@ -64,8 +65,9 @@ class MacroBenchmark:
             if clean_files:
                 self._clean()
             print('\n\n')
+
         if untarring:
-            self.untar_benchmark(iteration_cnt, data_block_size)
+            self.untar_benchmark(untar_iteration_cnt, data_block_size)
             if clean_files:
                 self._clean()
             print('\n\n')
