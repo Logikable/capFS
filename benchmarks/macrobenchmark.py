@@ -256,7 +256,6 @@ class MacroBenchmark:
     def _run_untar(self, iteration_cnt, block_size, mount_point, filename):
         filepath = '{}/{}'.format(mount_point, filename)
         latencies = 0
-        self._creat(filepath)
 
         try:
             for _ in range(iteration_cnt):
