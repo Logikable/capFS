@@ -10,7 +10,7 @@ Note:
 """
 import tarfile, glob, random, os, subprocess, shutil
 from microbenchmark import MicroBenchmark
-from util import measure_latency
+from util import measure_latency, get_throughput, Unit
 
 class MacroBenchmark:
     def __init__(self, cap_fs_mount_point, efs_mount_point):
@@ -130,6 +130,8 @@ class MacroBenchmark:
         latency = self._random_read(iteration_cnt, block_size, mount_point, read_file_name)
         print('filesystem: {}. RANDOM read latency for {} times of {} block size: {}ms'
               .format(filesys_name, iteration_cnt, block_size, latency))
+        print('throughput: {}'
+              .format(get_throughput(latency, block_size, Unit.MB)))
         print('=' * 60)
 
     def _random_write_benchmark(self, iteration_cnt, block_size, write_with_fsync, mount_point, write_file_name, filesys_name):
@@ -141,6 +143,8 @@ class MacroBenchmark:
         latency = self._random_write(iteration_cnt, block_size, mount_point, write_file_name, with_fsync=write_with_fsync)
         print('filesys: {}. RANDOM write latency {} times of {} block size: {}ms'
               .format(filesys_name, iteration_cnt, block_size, latency))
+        print('throughput: {}'
+              .format(get_throughput(latency, block_size, Unit.MB)))
         print('=' * 60)
 
     def _cp_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
@@ -151,6 +155,8 @@ class MacroBenchmark:
         latency = self._run_cp(iteration_cnt, block_size, mount_point, read_file_name)
         print('filesystem: {}. copy latency for {} times of {} block size: {}ms'
               .format(filesys_name, iteration_cnt, block_size, latency))
+        print('throughput: {}'
+              .format(get_throughput(latency, block_size, Unit.MB)))
         print('=' * 60)
 
     def _untar_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
@@ -161,6 +167,8 @@ class MacroBenchmark:
         latency = self._run_untar(iteration_cnt, block_size, mount_point, read_file_name)
         print('filesystem: {}. untar latency for {} times of {} block size: {}ms'
               .format(filesys_name, iteration_cnt, block_size, latency))
+        print('throughput: {}'
+              .format(get_throughput(latency, block_size, Unit.MB)))
         print('=' * 60)
 
 
@@ -237,14 +245,14 @@ class MacroBenchmark:
         self.file_path_created.append(src_filepath)
         #create a new dir for /temp and append filepath+name
         dsn_file_dir = '{}/{}'.format(mount_point, "tmp")
+        dsn_filepath = '{}/{}'.format(dsn_file_dir, filename)
 
 
         try:
             if not os.path.exists(dsn_file_dir):
                 os.mkdir(dsn_file_dir)
         except OSError:
-            print ("Creation of the directory %s failed" % dsn_file_path)
-        dsn_filepath = '{}/{}'.format(dsn_file_dir, filename)
+            print ("Creation of the directory %s failed" % dsn_filepath)
 
         latencies = 0
         self._creat(src_filepath)

@@ -1,7 +1,11 @@
 import os
-import glob
 
-from util import measure_latency, measure_latency_with_return_val
+from util import (
+    measure_latency,
+    measure_latency_with_return_val,
+    get_throughput,
+    Unit
+)
 
 
 class MicroBenchmark:
@@ -116,6 +120,8 @@ class MicroBenchmark:
         latency = self._read(iteration_cnt, block_size, mount_point, read_file_name)
         print('filesystem: {}. read latency for {} times of {} block size: {}ms'
               .format(filesys_name, iteration_cnt, block_size, latency))
+        print('throughput: {}'
+              .format(get_throughput(latency, block_size, Unit.MB)))
         print('=' * 60)
 
     def _write_benchmark(self, iteration_cnt, block_size, write_with_fsync, mount_point, write_file_name, filesys_name):
@@ -127,6 +133,8 @@ class MicroBenchmark:
         latency = self._write(iteration_cnt, block_size, mount_point, write_file_name, with_fsync=write_with_fsync)
         print('filesys: {}. write latency {} times of {} block size: {}ms'
               .format(filesys_name, iteration_cnt, block_size, latency))
+        print('throughput: {}'
+              .format(get_throughput(latency, block_size, Unit.MB)))
         print('=' * 60)
 
     def _create_benchmark(self, frequency, mount_point, create_file_name, filesys_name):
