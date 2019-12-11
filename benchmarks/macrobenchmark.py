@@ -8,7 +8,7 @@ Note:
 
     Look at microbenchmark._read_benchmark code.
 """
-import tarfile, glob, random, os, subprocess
+import tarfile, glob, random, os, subprocess, shutil
 from microbenchmark import MicroBenchmark
 from util import measure_latency
 
@@ -112,12 +112,12 @@ class MacroBenchmark:
         self._untar_benchmark(iteration_cnt,
                             block_size,
                             self.cap_fs_mount_point,
-                            'sample.tar.gz',
+                            'capFS.tar.gz',
                             'capfs')
         self._untar_benchmark(iteration_cnt,
                             block_size,
                             self.efs_mount_point,
-                            'sample.tar.gz',
+                            'capFS.tar.gz',
                             'efs')
 
     def _random_read_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
@@ -234,14 +234,15 @@ class MacroBenchmark:
         src_filepath = '{}/{}'.format(mount_point, filename)
         self.file_path_created.append(src_filepath)
         #create a new dir for /temp and append filepath+name
-        dsn_file_path = '{}/{}'.format(mount_point, "tmp")
+        dsn_file_dir = '{}/{}'.format(mount_point, "tmp")
+
 
         try:
-            if not os.path.exists(dsn_file_path):
-                os.mkdir(dsn_file_path)
+            if not os.path.exists(dsn_file_dir):
+                os.mkdir(dsn_file_dir)
         except OSError:
             print ("Creation of the directory %s failed" % dsn_file_path)
-        dsn_filepath = '{}/{}'.format(dsn_file_path, filename)
+        dsn_filepath = '{}/{}'.format(dsn_file_dir, filename)
 
         latencies = 0
         self._creat(src_filepath)
@@ -250,32 +251,43 @@ class MacroBenchmark:
             for _ in range(iteration_cnt):
                 latencies += measure_latency(subprocess.call, ['cp', '-r', src_filepath, dsn_filepath])
 
+            self.file_path_created.append(dsn_filepath)
+            self.file_path_created.append(dsn_file_dir)
         except Exception as e:
             print('problem has occured while write benchmarking')
             print(e.__traceback__)
             print(e)
+
 
         return latencies / iteration_cnt
 
     def _run_untar(self, iteration_cnt, block_size, mount_point, filename):
         filepath = '{}/{}'.format(mount_point, filename)
         latencies = 0
+        dsn_file_dir = '{}/{}'.format(mount_point, "untarred")
+        try:
+            if not os.path.exists(dsn_file_dir):
+                os.mkdir(dsn_file_dir)
+        except OSError:
+            print ("Creation of the directory %s failed" % dsn_file_dir)
 
         try:
             for _ in range(iteration_cnt):
-                latencies += measure_latency(subprocess.call, ['tar', 'zxf', filepath])
-
+                latencies += measure_latency(subprocess.call, ['tar', 'zxf', filepath, '-C', dsn_file_dir])
+            self.file_path_created.append(dsn_file_dir)
         except Exception as e:
             print('problem has occured while write benchmarking')
             print(e.__traceback__)
             print(e)
-
         return latencies / iteration_cnt
 
 
     def _clean(self):
         for filepath in self.file_path_created:
-            os.remove(filepath)
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                shutil.rmtree(filepath, ignore_errors=False, onerror=None)
         self.file_path_created = []
 
     def _creat(self, filename):
