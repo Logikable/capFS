@@ -48,7 +48,7 @@ fh_init(void) {
 
 static uint64_t
 fh_next(void) {
-    for (int i = 0; i < 64; ++i) {
+    for (size_t i = 0; i < 64; ++i) {
         if (!fh_list[i].valid) {
             return i;
         }
@@ -62,6 +62,8 @@ fh_new(fh_entry_t **fh) {
     if (index == -1) {
         return EP_STAT_OUT_OF_MEMORY;
     }
+    fh_list[index].valid = true;
+    fh_list[index].ref = 0;
     *fh = fh_list + index;
     return EP_STAT_OK;
 }
@@ -73,6 +75,26 @@ fh_get(uint64_t fh, fh_entry_t **fh_ent) {
     }
     *fh_ent = fh_list + fh;
     return EP_STAT_OK;
+}
+
+EP_STAT
+fh_get_by_gob(gdp_name_t gob, fh_entry_t **fh_ent) {
+    for (size_t i = 0; i < 64; ++i) {
+        if (fh_list[i].valid) {
+            if (fh_list[i].is_dir) {
+                if (GDP_NAME_SAME(fh_list[i].dir->file->gob, gob)) {
+                    *fh_ent = fh_list + i;
+                    return EP_STAT_OK;
+                }
+            } else {
+                if (GDP_NAME_SAME(fh_list[i].file->gob, gob)) {
+                    *fh_ent = fh_list + i;
+                    return EP_STAT_OK;
+                }
+            }
+        }
+    }
+    return EP_STAT_NOT_FOUND;
 }
 
 void

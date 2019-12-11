@@ -67,7 +67,7 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     estat = capfs_dir_opendir_path(path_tokens, num_tokens, &dir);
     EP_STAT_CHECK(estat, goto fail0);
 
-    // File does not exist
+    // Check file does not exist
     if (capfs_dir_has_child(dir, file_name, false)) {
         goto fail1;
     }
@@ -85,6 +85,7 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     // Store data in file handler
     fh->is_dir = false;
     fh->file = file;
+    fh->ref++;
 
     // Cleanup
     capfs_dir_closedir(dir);
@@ -102,6 +103,7 @@ fail0:
 
 static int
 capfs_getattr(const char *path, struct stat *st) {
+    EP_STAT estat;
     memset(st, 0, sizeof(struct stat));
 
     st->st_uid = getuid();
@@ -109,21 +111,55 @@ capfs_getattr(const char *path, struct stat *st) {
     st->st_atime = time(NULL);
     st->st_mtime = time(NULL);
 
-    // For valid directories:
-    if (strcmp(path, "/") == 0) {
-        st->st_mode = S_IFDIR | 0755;
-        st->st_nlink = 2;
-        return 0;
-    }
+    capfs_file_t *file;
 
-    // For valid files:
-    if (true) {
-        st->st_mode = S_IFREG | 0777;
-        st->st_nlink = 1;
-        st->st_size = 0;    // TODO
-        return 0;
-    }
+    char **path_tokens;
+    size_t num_tokens = split_path(path, &path_tokens);
+    char *name = path_tokens[num_tokens - 1];
 
+    // Open directory
+    capfs_dir_t *dir;
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Check if it's a directory first
+    capfs_dir_t *child;
+    estat = capfs_dir_opendir(dir, name, &child);
+    EP_STAT_CHECK(estat, goto not_dir);
+
+    // Valid directory
+    st->st_mode = S_IFDIR | 0755;
+    st->st_nlink = 2;
+
+    // Cleanup
+    capfs_dir_closedir(child);
+    capfs_dir_closedir(dir);
+    free_tokens(path_tokens);
+    return 0;
+
+not_dir:
+    // Check if it's a file
+    estat = capfs_dir_open_file(dir, name, &file);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    // Valid file
+    st->st_mode = S_IFREG | 0777;
+    st->st_nlink = 1;
+    estat = capfs_file_get_length(file, (size_t *) &(st->st_size));
+    EP_STAT_CHECK(estat, goto fail2);
+
+    // Cleanup
+    capfs_file_close(file);
+    capfs_dir_closedir(dir);
+    free_tokens(path_tokens);
+    return 0;
+
+fail2:
+    capfs_file_close(file);
+fail1:
+    capfs_dir_closedir(dir);
+fail0:
+    free_tokens(path_tokens);
     return -ENOENT;
 }
 
@@ -169,7 +205,6 @@ fail0:
     return -ENOENT;
 }
 
-// TODO: count # of references (here and opendir, release and releasedir)
 static int
 capfs_open(const char *path, struct fuse_file_info *fi) {
     // Error handling
@@ -195,15 +230,23 @@ capfs_open(const char *path, struct fuse_file_info *fi) {
     estat = capfs_dir_open_file(dir, file_name, &file);
     EP_STAT_CHECK(estat, goto fail1);
 
-    // Get a new file handler
     fh_entry_t *fh;
-    estat = fh_new(&fh);
-    EP_STAT_CHECK(estat, goto fail1);
-    fi->fh = fh->fh;
+    estat = fh_get_by_gob(file->gob, &fh);
+    // File already exists
+    if (EP_STAT_ISOK(estat)) {
+        fh->ref++;
+        capfs_file_close(file);
+    } else {    // doesn't exist
+        // Get a new file handler
+        estat = fh_new(&fh);
+        EP_STAT_CHECK(estat, goto fail1);
+        fi->fh = fh->fh;
 
-    // Store data in file handler
-    fh->is_dir = false;
-    fh->file = file;
+        // Store data in file handler
+        fh->is_dir = false;
+        fh->file = file;
+        fh->ref++;
+    }
 
     // Cleanup
     capfs_dir_closedir(dir);
@@ -238,18 +281,24 @@ capfs_opendir(const char *path, struct fuse_file_info *fi) {
     capfs_dir_t *child;
     estat = capfs_dir_opendir(dir, file_name, &child);
     EP_STAT_CHECK(estat, goto fail1);
-    estat = capfs_dir_closedir(dir);
-    EP_STAT_CHECK(estat, goto fail0);
 
-    // Get a new file handler
     fh_entry_t *fh;
-    estat = fh_new(&fh);
-    EP_STAT_CHECK(estat, goto fail1);
-    fi->fh = fh->fh;
+    estat = fh_get_by_gob(child->file->gob, &fh);
+    // File already exists
+    if (EP_STAT_ISOK(estat)) {
+        fh->ref++;
+        capfs_dir_closedir(child);
+    } else {    // doesn't exist
+        // Get a new file handler
+        estat = fh_new(&fh);
+        EP_STAT_CHECK(estat, goto fail1);
+        fi->fh = fh->fh;
 
-    // Store data in file handler
-    fh->is_dir = true;
-    fh->dir = child;
+        // Store data in file handler
+        fh->is_dir = true;
+        fh->dir = child;
+        fh->ref++;
+    }
 
     // Cleanup
     capfs_dir_closedir(dir);
@@ -333,8 +382,12 @@ capfs_release(const char *path, struct fuse_file_info *fi) {
         goto fail0;
     }
 
-    capfs_file_close(fh->file);
-    fh_free(fh->fh);
+    // Only close and free if unreferenced
+    fh->ref--;
+    if (fh->ref == 0) {
+        capfs_file_close(fh->file);
+        fh_free(fh->fh);
+    }
     return 0;
 
 fail0:
@@ -355,8 +408,12 @@ capfs_releasedir(const char *path, struct fuse_file_info *fi) {
         goto fail0;
     }
 
-    capfs_dir_closedir(fh->dir);
-    fh_free(fh->fh);
+    // Only close and free if unreferenced
+    fh->ref--;
+    if (fh->ref == 0) {
+        capfs_dir_closedir(fh->dir);
+        fh_free(fh->fh);
+    }
     return 0;
 
 fail0:

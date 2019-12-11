@@ -416,6 +416,27 @@ fail0:
 }
 
 EP_STAT
+capfs_file_get_length(capfs_file_t *file, size_t *length) {
+    if (file == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
+    EP_STAT estat;
+    gdp_gin_t *ginp = file->ginp;
+
+    // Read inode
+    inode_t inode;
+    gdp_hash_t *prevhash;
+    estat = capfs_file_read_inode(ginp, &inode, &prevhash);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    *length = inode.length;
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+EP_STAT
 capfs_file_truncate(capfs_file_t *file, off_t file_size) {
     if (file == NULL) {
         return EP_STAT_INVALID_ARG;
