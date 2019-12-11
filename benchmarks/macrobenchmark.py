@@ -265,11 +265,13 @@ class MacroBenchmark:
         filepath = '{}/{}'.format(mount_point, filename)
         latencies = 0
         dsn_file_dir = '{}/{}'.format(mount_point, "untarred")
+
         try:
             if not os.path.exists(dsn_file_dir):
                 os.mkdir(dsn_file_dir)
         except OSError:
             print ("Creation of the directory %s failed" % dsn_file_dir)
+        # dsn_file_dir = '{}/{}'.format(mount_point, dsn_file_dir)
 
         try:
             for _ in range(iteration_cnt):
@@ -284,11 +286,12 @@ class MacroBenchmark:
 
     def _clean(self):
         for filepath in self.file_path_created:
-            try:
+            if os.path.isfile(filepath):
                 os.remove(filepath)
-            except Exception as e:
-                shutil.rmtree(filepath, ignore_errors=False, onerror=None)
+            else:
+                shutil.rmtree(filepath)
         self.file_path_created = []
+
 
     def _creat(self, filename):
         # Create a file with maximum access control
