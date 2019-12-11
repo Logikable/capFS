@@ -1,7 +1,7 @@
 import os
 import glob
 
-from util import measure_latency
+from util import measure_latency, measure_latency_with_return_val
 
 
 class MicroBenchmark:
@@ -24,7 +24,8 @@ class MicroBenchmark:
             write_with_fsync=False,
             create=True,
             create_frequency=3000,
-            clean_files=True):
+            clean_files=True,
+            open=True):
         """
         Run micro-benchmarking
         :param data_block_size(Int): data block size to perform read/write for each iteration_cnt
@@ -52,6 +53,11 @@ class MicroBenchmark:
             self.create_benchmark(create_frequency)
             if clean_files:
                 self._clean()
+            print('\n\n')
+
+        if open:
+            self.open_benchmark(iteration_cnt)
+            self._clean()
             print('\n\n')
 
     def read_benchmark(self, iteration_cnt, block_size):
@@ -90,11 +96,21 @@ class MicroBenchmark:
                                'efs_create.txt',
                                'efs')
 
+    def open_benchmark(self, iteration_cnt):
+        self._open_benchmark(iteration_cnt,
+                             self.cap_fs_mount_point,
+                             'capfs_open.txt',
+                             'capfs')
+        self._open_benchmark(iteration_cnt,
+                             self.efs_mount_point,
+                             'efs_open.txt',
+                             'efs')
     """
     Private functions
     """
     def _read_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
         print('=' * 60)
+        print('READ micro benchmark')
         print('Mount point: {}'.format(mount_point))
         print('Perform {} number of {} size read'.format(iteration_cnt, block_size))
         latency = self._read(iteration_cnt, block_size, mount_point, read_file_name)
@@ -104,6 +120,7 @@ class MicroBenchmark:
 
     def _write_benchmark(self, iteration_cnt, block_size, write_with_fsync, mount_point, write_file_name, filesys_name):
         print('=' * 60)
+        print('WRITE micro benchmark')
         print('Mount point: {}'.format(mount_point))
         print('Perform {} number of {} size read'.format(iteration_cnt, block_size))
         print('Perform fsync for each iteration_cnt: {}'.format(write_with_fsync))
@@ -114,10 +131,21 @@ class MicroBenchmark:
 
     def _create_benchmark(self, frequency, mount_point, create_file_name, filesys_name):
         print('=' * 60)
+        print('CREATE micro benchmark')
         print('Mount point: {}'.format(self.cap_fs_mount_point))
         print('Creating {} number of files at {}'.format(frequency, mount_point))
         latency = self._create(frequency, mount_point, create_file_name)
         print('filesys: {}. create latency with frequency {}: {} ms'.format(filesys_name, frequency, latency))
+        print('=' * 60)
+
+    def _open_benchmark(self, iteration_cnt, mount_point, filename, filesys_name):
+        print('=' * 60)
+        print('OPEN micro benchmark')
+        print('Mount point: {}'.format(self.cap_fs_mount_point))
+        print('Open {} file {} number of times'.format(filename, iteration_cnt))
+        latency = self._open(iteration_cnt, mount_point, filename)
+        print('filesys: {}. avg open latency with iteration_cnt {}: {} ms'
+              .format(filesys_name, iteration_cnt, latency))
         print('=' * 60)
 
     def _create(self, frequency, mount_point, filename):
@@ -197,6 +225,30 @@ class MicroBenchmark:
             if fd is None:
                 raise Exception('benchmarking failed during some I/O operations')
             else:
+                os.close(fd)
+
+        return latencies / iteration_cnt
+
+    def _open(self, iteration_cnt, mount_point, filename):
+        filepath = '{}/{}'.format(mount_point, filename)
+        self.file_path_created.append(filepath)
+        fd = None
+        latencies = 0
+        self._creat(filepath)
+
+        try:
+            for _ in range(iteration_cnt):
+                latency, fd = measure_latency_with_return_val(os.open, filepath, os.O_TRUNC|os.O_RDWR)
+                latencies += latency
+                os.close(fd)
+                fd = None
+
+        except Exception as e:
+            print('problem has occured while write benchmarking')
+            print(e.__traceback__)
+            print(e)
+        finally:
+            if fd is not None:
                 os.close(fd)
 
         return latencies / iteration_cnt

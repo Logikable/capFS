@@ -122,6 +122,7 @@ class MacroBenchmark:
 
     def _random_read_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
         print('=' * 60)
+        print('RANDOM READ macro benchmark')
         print('Mount point: {}'.format(mount_point))
         print('Perform {} number of {} size read'.format(iteration_cnt, block_size))
         latency = self._random_read(iteration_cnt, block_size, mount_point, read_file_name)
@@ -131,6 +132,7 @@ class MacroBenchmark:
 
     def _random_write_benchmark(self, iteration_cnt, block_size, write_with_fsync, mount_point, write_file_name, filesys_name):
         print('=' * 60)
+        print('RANDOM WRITE macro benchmark')
         print('Mount point: {}'.format(mount_point))
         print('Perform {} number of {} size written'.format(iteration_cnt, block_size))
         print('Perform fsync for each iteration_cnt: {}'.format(write_with_fsync))
@@ -141,6 +143,7 @@ class MacroBenchmark:
 
     def _cp_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
         print('=' * 60)
+        print('CP macro benchmark')
         print('Mount point: {}'.format(mount_point))
         print('Perform {} number of {} size copying'.format(iteration_cnt, block_size))
         latency = self._run_cp(iteration_cnt, block_size, mount_point, read_file_name)
@@ -150,6 +153,7 @@ class MacroBenchmark:
 
     def _untar_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
         print('=' * 60)
+        print('UNTAR macro benchmark')
         print('Mount point: {}'.format(mount_point))
         print('Perform {} number of {} size untarring'.format(iteration_cnt, block_size))
         latency = self._run_untar(iteration_cnt, block_size, mount_point, read_file_name)
