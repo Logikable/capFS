@@ -142,7 +142,7 @@ class MacroBenchmark:
     def _cp_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
         print('=' * 60)
         print('Mount point: {}'.format(mount_point))
-        print('Perform {} number of {} size copied'.format(iteration_cnt, block_size))
+        print('Perform {} number of {} size copying'.format(iteration_cnt, block_size))
         latency = self._run_cp(iteration_cnt, block_size, mount_point, read_file_name)
         print('filesystem: {}. copy latency for {} times of {} block size: {}ms'
               .format(filesys_name, iteration_cnt, block_size, latency))
@@ -151,7 +151,7 @@ class MacroBenchmark:
     def _untar_benchmark(self, iteration_cnt, block_size, mount_point, read_file_name, filesys_name):
         print('=' * 60)
         print('Mount point: {}'.format(mount_point))
-        print('Perform {} number of {} size untarred'.format(iteration_cnt, block_size))
+        print('Perform {} number of {} size untarring'.format(iteration_cnt, block_size))
         latency = self._run_untar(iteration_cnt, block_size, mount_point, read_file_name)
         print('filesystem: {}. untar latency for {} times of {} block size: {}ms'
               .format(filesys_name, iteration_cnt, block_size, latency))
@@ -254,17 +254,9 @@ class MacroBenchmark:
         return latencies / iteration_cnt
 
     def _run_untar(self, iteration_cnt, block_size, mount_point, filename):
-        with tarfile.open("sample.tar.gz", "w:gz") as tar_handle:
-            path = mount_point + "/tmp"
-            for root, dirs, files in os.walk(mount_point):
-                for file in files:
-                    tar_handle.add(os.path.join(root, file))
-        tar_handle.close()
-
         filepath = '{}/{}'.format(mount_point, filename)
-        self.file_path_created.append(filepath)
         latencies = 0
-        self._creat(filepath)
+
         try:
             for _ in range(iteration_cnt):
                 latencies += measure_latency(subprocess.call, ['tar', 'zxf', filepath])
