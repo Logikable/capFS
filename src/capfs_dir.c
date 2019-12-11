@@ -31,6 +31,7 @@
 
 #include <string.h>
 
+// Does not perform writeback
 static EP_STAT
 capfs_dir_table_insert_entry(capfs_dir_table_t *table, const char *name,
                              bool is_dir, gdp_name_t gob) {
@@ -425,6 +426,97 @@ fail0:
     return estat;
 }
 
+// Performs writeback
+static EP_STAT
+capfs_dir_remove_entry(capfs_dir_t *parent, capfs_dir_table_t *table,
+                       size_t index) {
+    EP_STAT estat;
+
+    // Remove by shifting everything else up
+    for (index++; index < table->length; index++) {
+        table->entries[index - 1] = table->entries[index];
+    }
+    // Zero out last one
+    memset(table->entries + index - 1, 0, DIR_ENTRY_SIZE);
+    table->length--;
+
+    // Writeback
+    estat = capfs_file_write(parent->file, (const char *) table,
+                             DIR_TABLE_SIZE, 0);
+    EP_STAT_CHECK(estat, goto fail0);
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
+EP_STAT
+capfs_dir_rename(capfs_dir_t *from, capfs_dir_t *to, const char *from_name,
+                 const char *to_name) {
+    if (from == NULL || to == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
+    EP_STAT estat;
+
+    char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1];
+    gdp_name_t gobs[DIR_ENTRIES];
+
+    // Get "from" table + gob (checks from_name exists)
+    capfs_dir_table_t from_table;
+    estat = capfs_dir_readdir(from, &from_table, names, gobs);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    size_t from_index = 0;
+    for (; from_index < from_table.length; from_index++) {
+        if (strcmp(names[from_index], from_name) == 0) {
+            break;
+        }
+    }
+    if (from_index == from_table.length) {
+        estat = EP_STAT_INVALID_ARG;
+        goto fail0;
+    }
+
+    // Get "to" table (checks to_name doesn't exist)
+    capfs_dir_table_t to_table;
+    estat = capfs_dir_readdir(to, &to_table, names, NULL);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    size_t to_index = 0;
+    for (; to_index < to_table.length; to_index++) {
+        if (strcmp(names[to_index], to_name) == 0) {
+            break;
+        }
+    }
+    if (to_index != to_table.length) {
+        estat = EP_STAT_INVALID_ARG;
+        goto fail0;
+    }
+
+    // Sanity check
+    if (to_table.length == DIR_ENTRIES) {
+        estat = EP_STAT_OUT_OF_MEMORY;
+        goto fail0;
+    }
+
+    // Insert into to_table, write back
+    estat = capfs_dir_table_insert_entry(&to_table, to_name, false, 
+                                         gobs[from_index]);
+    EP_STAT_CHECK(estat, goto fail0);
+    estat = capfs_file_write(to->file, (const char *) &to_table, DIR_TABLE_SIZE,
+                             0);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Remove from from_table, write back
+    estat = capfs_dir_remove_entry(from, &from_table, from_index);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
 static EP_STAT
 capfs_dir_remove_step_1(capfs_dir_t *parent, const char *name,
                         capfs_dir_table_t *table, size_t *index) {
@@ -454,29 +546,6 @@ fail0:
     return estat;
 }
 
-static EP_STAT
-capfs_dir_remove_step_2(capfs_dir_t *parent, capfs_dir_table_t *table,
-                        size_t *index) {
-    EP_STAT estat;
-
-    // Remove by shifting everything else up
-    for ((*index)++; *index < table->length; (*index)++) {
-        table->entries[(*index) - 1] = table->entries[*index];
-    }
-    // Zero out last one
-    memset(table->entries + (*index) - 1, 0, DIR_ENTRY_SIZE);
-    table->length--;
-
-    // Writeback
-    estat = capfs_file_write(parent->file, (const char *) table,
-                             DIR_TABLE_SIZE, 0);
-    EP_STAT_CHECK(estat, goto fail0);
-    return EP_STAT_OK;
-
-fail0:
-    return estat;
-}
-
 EP_STAT
 capfs_dir_remove_file(capfs_dir_t *parent, const char *name) {
     EP_STAT estat;
@@ -492,7 +561,7 @@ capfs_dir_remove_file(capfs_dir_t *parent, const char *name) {
         goto fail0;
     }
 
-    estat = capfs_dir_remove_step_2(parent, &table, &index);
+    estat = capfs_dir_remove_entry(parent, &table, index);
     EP_STAT_CHECK(estat, goto fail0);
     return EP_STAT_OK;
 
@@ -515,7 +584,7 @@ capfs_dir_rmdir(capfs_dir_t *parent, const char *name) {
         goto fail0;
     }
 
-    estat = capfs_dir_remove_step_2(parent, &table, &index);
+    estat = capfs_dir_remove_entry(parent, &table, index);
     EP_STAT_CHECK(estat, goto fail0);
     return EP_STAT_OK;
 

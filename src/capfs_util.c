@@ -96,10 +96,10 @@ split_path(const char *path, char ***tokens) {
     size_t tokens_index = 0;
     while ((c = path[index]) != '\0' && tokens_index < 32) {
         if (c == '/' || path[index + 1] == '\0') {
-            *tokens[tokens_index] = calloc(sizeof(char), 128);
+            *tokens[tokens_index] = calloc(sizeof(char), FILE_NAME_MAX_LEN + 1);
             size_t length = index - prev_index - 1;
             strncpy(*tokens[tokens_index], path + prev_index,
-                    length < 128 ? length : 127);
+                   length < FILE_NAME_MAX_LEN + 1 ? length : FILE_NAME_MAX_LEN);
             tokens_index++;
             prev_index = index;
         }

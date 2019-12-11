@@ -46,12 +46,6 @@
 #include "capfs_util.h"
 
 static int
-capfs_access(const char *path, int mode) {
-    // TODO
-    return 0;
-}
-
-static int
 capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     (void) mode;
 
@@ -86,7 +80,8 @@ capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
 
     // Create the file in the directory
     capfs_file_t *file;
-    EP_STAT_CHECK(capfs_dir_make_file(dir, file_name, &file), goto fail2);
+    estat = capfs_dir_make_file(dir, file_name, &file);
+    EP_STAT_CHECK(estat, goto fail2);
     // Store data in file handler
     fh->is_dir = false;
     fh->file = file;
@@ -174,7 +169,7 @@ fail0:
     return -ENOENT;
 }
 
-// TODO: count # of references (here and opendir)
+// TODO: count # of references (here and opendir, release and releasedir)
 static int
 capfs_open(const char *path, struct fuse_file_info *fi) {
     // Error handling
@@ -326,42 +321,226 @@ fail0:
 // Equivalent to file_close
 static int
 capfs_release(const char *path, struct fuse_file_info *fi) {
+    (void) path;
+    EP_STAT estat;
+
+    fh_entry_t *fh;
+    estat = fh_get(fi->fh, &fh);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Sanity checks
+    if (!fh->valid || fh->is_dir) {
+        goto fail0;
+    }
+
+    capfs_file_close(fh->file);
+    fh_free(fh->fh);
     return 0;
+
+fail0:
+    return -ENOENT;
 }
 
 static int
 capfs_releasedir(const char *path, struct fuse_file_info *fi) {
+    (void) path;
+    EP_STAT estat;
+
+    fh_entry_t *fh;
+    estat = fh_get(fi->fh, &fh);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Sanity checks
+    if (!fh->valid || !fh->is_dir) {
+        goto fail0;
+    }
+
+    capfs_dir_closedir(fh->dir);
+    fh_free(fh->fh);
     return 0;
+
+fail0:
+    return -ENOENT;
 }
 
 static int
 capfs_rename(const char *from, const char *to) {
+    if (strlen(from) == 0 || strlen(to) == 0) {
+        return -ENOENT;
+    }
+    EP_STAT estat;
+
+    // Open from directory
+    char **path_tokens;
+    size_t num_tokens = split_path(from, &path_tokens);
+    char from_name[FILE_NAME_MAX_LEN + 1];
+    strcpy(from_name, path_tokens[num_tokens - 1]);
+
+    capfs_dir_t *from_dir;
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &from_dir);
+    EP_STAT_CHECK(estat, goto fail0);
+    free_tokens(path_tokens);
+
+    // Open to directory
+    num_tokens = split_path(to, &path_tokens);
+    char to_name[FILE_NAME_MAX_LEN + 1];
+    strcpy(to_name, path_tokens[num_tokens - 1]);
+
+    capfs_dir_t *to_dir;
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &to_dir);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    // Rename
+    estat = capfs_dir_rename(from_dir, to_dir, from_name, to_name);
+    EP_STAT_CHECK(estat, goto fail2);
+
+    // Cleanup
+    capfs_dir_closedir(to_dir);
+    capfs_dir_closedir(from_dir);
+    free_tokens(path_tokens);
     return 0;
+
+fail2:
+    capfs_dir_closedir(to_dir);
+fail1:
+    capfs_dir_closedir(from_dir);
+fail0:
+    free_tokens(path_tokens);
+    return -ENOENT;
 }
 
 static int
 capfs_rmdir(const char *path) {
+    // Error handling
+    if (strlen(path) == 0) {
+        return -ENOENT;
+    }
+    EP_STAT estat;
+
+    char **path_tokens;
+    size_t num_tokens = split_path(path, &path_tokens);
+    char *dir_name = path_tokens[num_tokens - 1];
+
+    // Open directory
+    capfs_dir_t *dir;
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    estat = capfs_dir_rmdir(dir, dir_name);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    // Cleanup
+    capfs_dir_closedir(dir);
+    free_tokens(path_tokens);
     return 0;
+
+fail1:
+    capfs_dir_closedir(dir);
+fail0:
+    free_tokens(path_tokens);
+    return -ENOENT;
 }
 
 static int
 capfs_truncate(const char *path, off_t file_size) {
+    // Error handling
+    if (strlen(path) == 0) {
+        return -ENOENT;
+    }
+    if (path[strlen(path) - 1] == '/') {
+        return -EISDIR;
+    }
+    EP_STAT estat;
+
+    char **path_tokens;
+    size_t num_tokens = split_path(path, &path_tokens);
+    char *file_name = path_tokens[num_tokens - 1];
+
+    // Open directory
+    capfs_dir_t *dir;
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Open file
+    capfs_file_t *file;
+    estat = capfs_dir_open_file(dir, file_name, &file);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    // Truncate
+    estat = capfs_file_truncate(file, file_size);
+    EP_STAT_CHECK(estat, goto fail2);
+
+    // Cleanup
+    capfs_file_close(file);
+    capfs_dir_closedir(dir);
+    free_tokens(path_tokens);
     return 0;
+
+fail2:
+    capfs_file_close(file);
+fail1:
+    capfs_dir_closedir(dir);
+fail0:
+    free_tokens(path_tokens);
+    return -ENOENT;
 }
 
 static int
 capfs_unlink(const char *path) {
+    // Error handling
+    if (strlen(path) == 0) {
+        return -ENOENT;
+    }
+    EP_STAT estat;
+
+    char **path_tokens;
+    size_t num_tokens = split_path(path, &path_tokens);
+    char *file_name = path_tokens[num_tokens - 1];
+
+    // Open directory
+    capfs_dir_t *dir;
+    estat = capfs_dir_opendir_path(path_tokens, num_tokens, &dir);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    estat = capfs_dir_remove_file(dir, file_name);
+    EP_STAT_CHECK(estat, goto fail1);
+
+    // Cleanup
+    capfs_dir_closedir(dir);
+    free_tokens(path_tokens);
     return 0;
+
+fail1:
+    capfs_dir_closedir(dir);
+fail0:
+    free_tokens(path_tokens);
+    return -ENOENT;
 }
 
 static int
 capfs_write(const char *path, const char *buf, size_t size, off_t offset,
             struct fuse_file_info *fi) {
+    (void) path;
+    EP_STAT estat;
+
+    fh_entry_t *fh;
+    estat = fh_get(fi->fh, &fh);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Sanity checks
+    if (!fh->valid || fh->is_dir) {
+        goto fail0;
+    }
+
+    estat = capfs_file_write(fh->file, buf, size, offset);
+    EP_STAT_CHECK(estat, goto fail0);
     return 0;
+
+fail0:
+    return -ENOENT;
 }
 
 static struct fuse_operations capfs_operations = {
-    .access = capfs_access,
     .create = capfs_create,
     .getattr = capfs_getattr,
     .mkdir = capfs_mkdir,

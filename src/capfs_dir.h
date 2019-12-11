@@ -82,6 +82,8 @@ bool capfs_dir_has_child(capfs_dir_t *parent, const char *name, bool is_dir);
 EP_STAT capfs_dir_readdir(capfs_dir_t *dir, capfs_dir_table_t *table,
                           char names[DIR_ENTRIES][FILE_NAME_MAX_LEN + 1],
                           gdp_name_t gobs[DIR_ENTRIES]);
+EP_STAT capfs_dir_rename(capfs_dir_t *from, capfs_dir_t *to,
+                         const char *from_name, const char *to_name);
 EP_STAT capfs_dir_remove_file(capfs_dir_t *parent, const char *name);
 EP_STAT capfs_dir_rmdir(capfs_dir_t *parent, const char *name);
 EP_STAT capfs_dir_closedir(capfs_dir_t *dir);

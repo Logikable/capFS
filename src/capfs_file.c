@@ -415,6 +415,44 @@ fail0:
     return estat;
 }
 
+EP_STAT
+capfs_file_truncate(capfs_file_t *file, off_t file_size) {
+    if (file == NULL) {
+        return EP_STAT_INVALID_ARG;
+    }
+    EP_STAT estat;
+    gdp_gin_t *ginp = file->ginp;
+
+    // Read inode
+    inode_t inode;
+    gdp_hash_t *prevhash;
+    estat = capfs_file_read_inode(ginp, &inode, &prevhash);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    // Error checking
+    if (file_size > inode.length) {
+        estat = EP_STAT_INVALID_ARG;
+        goto fail0;
+    }
+
+    // Update length + metadata
+    inode.length = file_size;
+    inode.recno++;
+    inode.has_indirect_block = false;
+
+    // Write in an empty block
+    char data_block[BLOCK_SIZE];
+    memset(data_block, 0, BLOCK_SIZE);
+    estat = capfs_file_write_record(ginp, prevhash, &prevhash, &inode, NULL,
+                                    data_block);
+    EP_STAT_CHECK(estat, goto fail0);
+
+    return EP_STAT_OK;
+
+fail0:
+    return estat;
+}
+
 static EP_STAT
 _capfs_file_create(const char *name, capfs_file_t **file) {
     EP_STAT estat;
