@@ -37,7 +37,7 @@
 int main(int argc, char *argv[]) {
     init();
 
-    const char *path = "test47";
+    const char *path = "test";
     capfs_file_t *file;
     OK(capfs_file_open(path, &file));
 

@@ -38,9 +38,8 @@ int main(int argc, char *argv[]) {
     bench_start();
 
     // Please increment the test file number before each run!
-    const char *path = "test47";
     capfs_file_t *file;
-    OK(capfs_file_create(path, &file));
+    OK(capfs_file_create("test", &file));
 
     bench_end();
 

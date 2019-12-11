@@ -29,11 +29,28 @@
 
 #include "test.h"
 
+#include <string.h>
+
 #include "capfs.h"
-#include "capfs_dir.h"
+#include "capfs_file.h"
 
 int main(int argc, char *argv[]) {
     init();
 
-    OK(capfs_dir_make_root());
+    const char *path = "test";
+    capfs_file_t *file;
+    OK(capfs_file_open(path, &file));
+
+    bench_start();
+
+    off_t file_size = 128;
+    OK(capfs_file_truncate(file, file_size));
+
+    bench_end();
+
+    size_t length;
+    OK(capfs_file_get_length(file, &length));
+    printf("%ld\n", length);
+
+    printf("Success!\n");
 }

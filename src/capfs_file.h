@@ -30,7 +30,8 @@
 #ifndef _CAPFS_FILE_H_
 #define _CAPFS_FILE_H_
 
-#define FILE_PREFIX "edu.berkeley.eecs.cs262.fa19.capfs.1."
+// Bump the final number when creating a fresh file system
+#define FILE_PREFIX "edu.berkeley.eecs.cs262.fa19.capfs.3."
 
 #define FILE_NAME_MAX_LEN 127
 

@@ -27,8 +27,11 @@
 **  ----- END LICENSE BLOCK -----
 */
 
+#include <ep/ep_dbg.h>
+
 #include "capfs.h"
 
 int main(int argc, char *argv[]) {
+    ep_dbg_set("16");
     return run(argc, argv);
 }
