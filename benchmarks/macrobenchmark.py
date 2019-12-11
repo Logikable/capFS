@@ -275,7 +275,7 @@ class MacroBenchmark:
 
         try:
             for _ in range(iteration_cnt):
-                latencies += measure_latency(subprocess.call, ['tar', 'zxf', filepath, '-C', dsn_file_dir])
+                latencies += measure_latency(subprocess.call, ['tar', 'xf', filepath, '-C', dsn_file_dir])
             self.file_path_created.append(dsn_file_dir)
         except Exception as e:
             print('problem has occured while write benchmarking')
