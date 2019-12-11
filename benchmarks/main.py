@@ -42,7 +42,7 @@ if __name__ == '__main__':
         benchmark.run(create_frequency=frequency, iteration_cnt=iteration_cnt, clean_files=clean_files)
     elif mode == 'macro':
         benchmark = MacroBenchmark(capfs_dir, efs_dir)
-        benchmark.run()
+        benchmark.run(iteration_cnt=iteration_cnt, clean_files=clean_files)
     else:
         print('mode should be either micro or macro')
 

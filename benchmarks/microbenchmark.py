@@ -213,8 +213,3 @@ class MicroBenchmark:
         os.close(fd)
         return fd
 
-
-
-
-
-
