@@ -36,10 +36,10 @@ int main(int argc, char *argv[]) {
     init();
 
     capfs_dir_t *root;
-    OK(capfs_dir_get_root(&root));
+    OK(capfs_dir_open_root(&root));
 
-    NOTOK(capfs_dir_rmdir(root, "test_file3"));
-    OK(capfs_dir_rmdir(root, "test2"));
+    NOTOK(capfs_dir_rmdir(root, "test_file"));
+    OK(capfs_dir_rmdir(root, "test"));
 
     printf("Success!\n");
 }

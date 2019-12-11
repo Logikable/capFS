@@ -46,6 +46,21 @@
 #include "capfs_util.h"
 
 static int
+capfs_access(const char *path, int mode) {
+    return 0;
+}
+
+static int
+capfs_chmod(const char *filepath, mode_t mode) {
+    return 0;
+}
+
+static int
+capfs_chown(const char *filepath, uid_t uid, gid_t gid) {
+    return 0;
+}
+
+static int
 capfs_create(const char *path, mode_t mode, struct fuse_file_info *fi) {
     (void) mode;
 
@@ -575,6 +590,11 @@ fail0:
 }
 
 static int
+capfs_utimens(const char *path, const struct timespec ts[2]) {
+    return 0;
+}
+
+static int
 capfs_write(const char *path, const char *buf, size_t size, off_t offset,
             struct fuse_file_info *fi) {
     (void) path;
@@ -598,6 +618,9 @@ fail0:
 }
 
 static struct fuse_operations capfs_operations = {
+    .access = capfs_access,
+    .chmod = capfs_chmod,
+    .chown = capfs_chown,
     .create = capfs_create,
     .getattr = capfs_getattr,
     .mkdir = capfs_mkdir,
@@ -611,6 +634,7 @@ static struct fuse_operations capfs_operations = {
     .rmdir = capfs_rmdir,
     .truncate = capfs_truncate,
     .unlink = capfs_unlink,
+    .utimens = capfs_utimens,
     .write = capfs_write,
 };
 

@@ -38,8 +38,5 @@ int main(int argc, char *argv[]) {
     capfs_dir_t *root;
     OK(capfs_dir_open_root(&root));
 
-    capfs_file_t *file;
-    OK(capfs_dir_make_file(root, "test_file", &file));
-
     printf("Success!\n");
 }

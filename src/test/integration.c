@@ -29,17 +29,23 @@
 
 #include "test.h"
 
-#include "capfs.h"
-#include "capfs_dir.h"
+#include <string.h>
 
 int main(int argc, char *argv[]) {
-    init();
+    FILE *fptr;
+    // Create/open
+    fptr = fopen("/mnt/capfs/test", "r+");
+    // Write
+    fputs("test123\n", fptr);
+    // Close
+    fclose(fptr);
 
-    capfs_dir_t *root;
-    OK(capfs_dir_open_root(&root));
-
-    capfs_file_t *file;
-    OK(capfs_dir_make_file(root, "test_file", &file));
+    // Read
+    fptr = fopen("/mnt/capfs/test", "r+");
+    char buf[256];
+    fgets(buf, 256, fptr);
+    printf("Read: %s", buf);
+    fclose(fptr);
 
     printf("Success!\n");
 }
